@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parent Dashboard — LearnQuest</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+  <div class="screen">
+    <header class="topbar">
+      <div class="brand"><span class="leaf-badge">🌿</span><span data-i18n="app_name">LearnQuest</span></div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <div class="lang-switch">
+          <button data-lang="en">EN</button>
+          <button data-lang="hi">हि</button>
+          <button data-lang="mr">मर</button>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn" data-i18n="dashboard_logout">Log Out</button>
+      </div>
+    </header>
+
+    <main class="container mt-24" style="flex:1; padding-bottom: 60px;">
+      <div class="flex-between">
+        <h2 data-i18n="parent_dashboard_title">Parent Dashboard</h2>
+        <a class="btn btn-primary btn-sm" href="profile-setup.html" data-i18n="parent_add_child">+ Add Child</a>
+      </div>
+
+      <div class="child-tabs" id="childTabs"></div>
+      <p id="noChildren" class="muted hidden" data-i18n="parent_no_children">No child profiles yet.</p>
+
+      <div id="dashboardContent" class="hidden">
+        <div class="stat-grid" id="statGrid"></div>
+
+        <div class="card mt-24">
+          <h3 data-i18n="parent_subject_progress">Subject Progress</h3>
+          <div id="subjectBars"></div>
+        </div>
+
+        <div class="card mt-24">
+          <h3 data-i18n="parent_weak_topics">Topics to Practice</h3>
+          <div id="weakTopics"></div>
+        </div>
+
+        <div class="card mt-24">
+          <h3 data-i18n="parent_add_task_title">Assign a Task</h3>
+          <form id="taskForm">
+            <div class="field">
+              <label data-i18n="parent_task_name">Task Title</label>
+              <input type="text" id="taskTitle" required>
+            </div>
+            <div class="field">
+              <label data-i18n="parent_task_desc">Description</label>
+              <input type="text" id="taskDesc">
+            </div>
+            <div class="field">
+              <label data-i18n="parent_task_reward_type">Reward Type</label>
+              <select id="taskRewardType">
+                <option value="coins" data-i18n="parent_task_reward_coins">Coins</option>
+                <option value="unlock_time" data-i18n="parent_task_reward_unlock">Unlock Adventure Time</option>
+              </select>
+            </div>
+            <div class="field">
+              <label data-i18n="parent_task_reward_value">Reward Value</label>
+              <input type="number" id="taskRewardValue" min="1" value="100" required>
+            </div>
+            <button type="submit" class="btn btn-primary" data-i18n="parent_task_assign">Assign Task</button>
+          </form>
+
+          <div id="taskList" class="mt-24"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script>
+  requireParentAuth();
+  document.getElementById("logoutBtn").onclick = () => { clearSession(); window.location.href = "index.html"; };
+
+  let children = [];
+  let selectedChildId = null;
+  let dashboardData = null;
+  let taskList = [];
+
+  async function loadChildren() {
+    const res = await api.childList();
+    children = res.children;
+    if (children.length === 0) {
+      document.getElementById("noChildren").classList.remove("hidden");
+      document.getElementById("dashboardContent").classList.add("hidden");
+      return;
+    }
+    document.getElementById("noChildren").classList.add("hidden");
+    if (!selectedChildId) selectedChildId = children[0].id;
+    renderTabs();
+    await loadDashboard();
+  }
+
+  function renderTabs() {
+    const tabs = document.getElementById("childTabs");
+    tabs.innerHTML = "";
+    children.forEach((c) => {
+      const chip = document.createElement("div");
+      chip.className = "child-chip" + (c.id === selectedChildId ? " active" : "");
+      chip.textContent = `${c.avatar} ${c.name}`;
+      chip.onclick = async () => { selectedChildId = c.id; renderTabs(); await loadDashboard(); };
+      tabs.appendChild(chip);
+    });
+  }
+
+  async function loadDashboard() {
+    dashboardData = await api.parentDashboard(selectedChildId);
+    const taskRes = await api.parentTaskList(selectedChildId);
+    taskList = taskRes.tasks;
+    document.getElementById("dashboardContent").classList.remove("hidden");
+    renderDashboard();
+  }
+
+  function renderDashboard() {
+    const d = dashboardData;
+    document.getElementById("statGrid").innerHTML = `
+      <div class="card-flat center"><div style="font-size:1.6rem;">⭐ ${d.child.xp}</div><div class="muted">XP</div></div>
+      <div class="card-flat center"><div style="font-size:1.6rem;">🪙 ${d.child.coins}</div><div class="muted">${t("dashboard_coins")}</div></div>
+      <div class="card-flat center"><div style="font-size:1.6rem;">🔥 ${d.child.streak_count}</div><div class="muted">${t("parent_streak")}</div></div>
+      <div class="card-flat center"><div style="font-size:1.6rem;">${d.overallAccuracy !== null ? d.overallAccuracy + "%" : "—"}</div><div class="muted">${t("parent_overall_accuracy")}</div></div>
+    `;
+
+    const bars = document.getElementById("subjectBars");
+    bars.innerHTML = "";
+    if (d.subjectStats.length === 0) {
+      bars.innerHTML = `<p class="muted">—</p>`;
+    }
+    d.subjectStats.forEach((s) => {
+      const row = document.createElement("div");
+      row.className = "subject-bar-row";
+      row.innerHTML = `
+        <div class="label-row"><span>${s.subject}</span><span>${s.accuracy !== null ? s.accuracy + "%" : "—"}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${s.accuracy || 0}%"></div></div>
+      `;
+      bars.appendChild(row);
+    });
+
+    const weak = document.getElementById("weakTopics");
+    weak.innerHTML = d.weakTopics.length
+      ? d.weakTopics.map((w) => `<span class="weak-topic-chip">⚠️ ${w.topic} (${w.accuracy}%)</span>`).join("")
+      : `<p class="muted">—</p>`;
+
+    renderTaskList();
+  }
+
+  function renderTaskList() {
+    const list = document.getElementById("taskList");
+    list.innerHTML = "";
+    taskList.forEach((task) => {
+      const row = document.createElement("div");
+      row.className = "task-row";
+      row.innerHTML = `
+        <div>
+          <div style="font-weight:700;">${task.title}</div>
+          <div class="muted" style="font-size:0.85rem;">${task.description || ""}</div>
+        </div>
+        <div>${task.status === "completed" ? "✅" : "⏳"}</div>
+      `;
+      list.appendChild(row);
+    });
+  }
+
+  document.getElementById("taskForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    await api.parentAssignTask({
+      childId: selectedChildId,
+      title: document.getElementById("taskTitle").value,
+      description: document.getElementById("taskDesc").value,
+      rewardType: document.getElementById("taskRewardType").value,
+      rewardValue: Number(document.getElementById("taskRewardValue").value),
+    });
+    e.target.reset();
+    document.getElementById("taskRewardValue").value = 100;
+    showToast("✅ Task assigned!");
+    const taskRes = await api.parentTaskList(selectedChildId);
+    taskList = taskRes.tasks;
+    renderTaskList();
+  });
+
+  document.addEventListener("lq:i18n-ready", () => { if (dashboardData) renderDashboard(); });
+  loadChildren();
+</script>
+</body>
+</html>

@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Create Child Profile — LearnQuest</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+  .wrap { max-width: 480px; margin: 30px auto 60px; padding: 0 20px; width: 100%; }
+  .success-box { text-align: center; }
+  .id-display {
+    background: var(--canopy); color: var(--white); border-radius: var(--radius-md);
+    padding: 16px; font-family: var(--font-display); font-size: 1.1rem; margin: 16px 0; word-break: break-all;
+  }
+</style>
+</head>
+<body>
+  <div class="screen">
+    <header class="topbar">
+      <a class="brand" href="parent-dashboard.html"><span class="leaf-badge">🌿</span><span data-i18n="app_name">LearnQuest</span></a>
+      <div class="lang-switch">
+        <button data-lang="en">EN</button>
+        <button data-lang="hi">हि</button>
+        <button data-lang="mr">मर</button>
+      </div>
+    </header>
+
+    <div class="wrap">
+      <div class="card" id="formCard">
+        <h2 class="center" data-i18n="profile_setup_title">Create a Child Profile</h2>
+        <form id="profileForm">
+          <div class="field">
+            <label data-i18n="profile_name_label">Child's Name</label>
+            <input type="text" id="pName" required>
+          </div>
+          <div class="field">
+            <label data-i18n="profile_age_label">Age</label>
+            <input type="number" id="pAge" min="4" max="12" required>
+          </div>
+          <div class="field">
+            <label data-i18n="profile_class_label">Class (optional)</label>
+            <input type="text" id="pClass" placeholder="e.g. Class 3">
+          </div>
+          <div class="field">
+            <label data-i18n="profile_language_label">Language</label>
+            <select id="pLanguage">
+              <option value="en">English</option>
+              <option value="hi">हिन्दी (Hindi)</option>
+              <option value="mr">मराठी (Marathi)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label data-i18n="profile_avatar_label">Choose an Avatar</label>
+            <div class="avatar-grid" id="avatarGrid"></div>
+            <input type="hidden" id="pAvatar" value="fox">
+          </div>
+          <div class="field">
+            <label data-i18n="profile_pin_label">Set a 4-digit PIN</label>
+            <input type="password" id="pPin" inputmode="numeric" maxlength="4" pattern="\d{4}" required>
+          </div>
+          <div id="formError" class="error-text hidden"></div>
+          <button type="submit" class="btn btn-primary btn-block" data-i18n="profile_save_button">Create Profile</button>
+        </form>
+      </div>
+
+      <div class="card success-box hidden" id="successCard">
+        <div style="font-size:2.6rem;">🎉</div>
+        <h2 data-i18n="profile_success">Profile created!</h2>
+        <div class="id-display">
+          <div id="successName"></div>
+          <div id="successId" style="font-size:0.9rem; opacity:0.85; margin-top:6px;"></div>
+        </div>
+        <a class="btn btn-secondary" href="parent-dashboard.html" data-i18n="parent_view_dashboard">View Dashboard</a>
+      </div>
+    </div>
+  </div>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script>
+  requireParentAuth();
+
+  const AVATARS = ["🦊","🐯","🐵","🦁","🐼","🦜","🐢","🐘"];
+  const grid = document.getElementById("avatarGrid");
+  const avatarInput = document.getElementById("pAvatar");
+  AVATARS.forEach((emoji, i) => {
+    const div = document.createElement("div");
+    div.className = "avatar-option" + (i === 0 ? " selected" : "");
+    div.textContent = emoji;
+    div.onclick = () => {
+      grid.querySelectorAll(".avatar-option").forEach(el => el.classList.remove("selected"));
+      div.classList.add("selected");
+      avatarInput.value = emoji;
+    };
+    grid.appendChild(div);
+  });
+
+  document.getElementById("profileForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const errEl = document.getElementById("formError");
+    errEl.classList.add("hidden");
+    try {
+      const payload = {
+        name: document.getElementById("pName").value,
+        age: Number(document.getElementById("pAge").value),
+        className: document.getElementById("pClass").value,
+        language: document.getElementById("pLanguage").value,
+        avatar: avatarInput.value,
+        pin: document.getElementById("pPin").value,
+      };
+      const data = await api.childCreate(payload);
+      document.getElementById("formCard").classList.add("hidden");
+      document.getElementById("successCard").classList.remove("hidden");
+      document.getElementById("successName").textContent = `${data.child.name} ${avatarInput.value}`;
+      document.getElementById("successId").textContent = `Child ID: ${data.child.id}`;
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.classList.remove("hidden");
+    }
+  });
+</script>
+</body>
+</html>

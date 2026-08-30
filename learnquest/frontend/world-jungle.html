@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jungle World — LearnQuest</title>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/components.css">
+<style>
+  .jungle-bg {
+    background: linear-gradient(180deg, var(--leaf-light) 0%, var(--parchment) 30%);
+    min-height: calc(100vh - 76px);
+  }
+  #mapSvgWrap { position: relative; max-width: 720px; margin: 10px auto 0; }
+  #legend { display:flex; gap:16px; flex-wrap:wrap; justify-content:center; margin: 10px 0 20px; font-size: 0.85rem; }
+  #legend span { display:flex; align-items:center; gap:6px; }
+  .legend-dot { width:14px; height:14px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body>
+  <div class="screen">
+    <header class="topbar">
+      <a class="brand" href="dashboard.html"><span class="leaf-badge">🌿</span><span data-i18n="app_name">LearnQuest</span></a>
+      <div class="lang-switch">
+        <button data-lang="en">EN</button>
+        <button data-lang="hi">हि</button>
+        <button data-lang="mr">मर</button>
+      </div>
+    </header>
+
+    <div class="jungle-bg">
+      <div class="container center" style="padding-top:20px;">
+        <h2 data-i18n="jungle_title">🌳 Jungle World</h2>
+        <p class="muted" data-i18n="jungle_subtitle">Walk the path. Pass the gates. Reach the Guardian.</p>
+      </div>
+
+      <div id="legend">
+        <span><i class="legend-dot" style="background:var(--leaf)"></i><span data-i18n="jungle_completed">Completed</span></span>
+        <span><i class="legend-dot" style="background:var(--sunbeam)"></i><span data-i18n="jungle_play">Play</span></span>
+        <span><i class="legend-dot" style="background:#A8A79C"></i><span data-i18n="jungle_locked">Locked</span></span>
+        <span><i class="legend-dot" style="background:var(--coral)"></i><span data-i18n="jungle_boss">Boss Battle</span></span>
+      </div>
+
+      <div id="mapSvgWrap"></div>
+    </div>
+  </div>
+
+<script src="js/i18n.js"></script>
+<script src="js/api.js"></script>
+<script src="js/gate.js"></script>
+<script>
+  requireChildAuth();
+  let state = null;
+
+  // Zig-zag path coordinates for up to ~10 nodes in a viewBox of 700x1000
+  function nodePositions(n) {
+    const positions = [];
+    const top = 60, bottom = 940, width = 560, cx = 350;
+    for (let i = 0; i < n; i++) {
+      const y = top + (i * (bottom - top)) / (n - 1);
+      const side = i % 2 === 0 ? -1 : 1;
+      const x = cx + side * (width / 2) * (0.55 + 0.45 * Math.sin(i * 1.3));
+      positions.push({ x, y });
+    }
+    return positions;
+  }
+
+  function iconFor(level) {
+    if (level.is_boss) return "👹";
+    const subjectIcons = { maths: "➕", english: "🔤", gk: "🌍" };
+    return subjectIcons[level.gate_subject_id] || "🌟";
+  }
+
+  function render() {
+    const levels = state.jungleLevels;
+    const positions = nodePositions(levels.length);
+    const pathD = positions.map((p, i) => (i === 0 ? `M ${p.x} ${p.y}` : `L ${p.x} ${p.y}`)).join(" ");
+
+    let svg = `<svg viewBox="0 0 700 1000" style="width:100%;">
+      <path d="${pathD}" stroke="#C9B896" stroke-width="10" fill="none" stroke-linecap="round" stroke-dasharray="2 22"/>
+    </svg>`;
+
+    document.getElementById("mapSvgWrap").innerHTML = svg;
+    const wrap = document.getElementById("mapSvgWrap");
+
+    levels.forEach((level, i) => {
+      const p = positions[i];
+      const pct = (val, total) => `${(val / total) * 100}%`;
+      const node = document.createElement("div");
+      const statusClass = level.is_boss ? "boss" : level.status;
+      node.className = `path-node ${statusClass}`;
+      node.style.left = pct(p.x, 700);
+      node.style.top = pct(p.y, 1000);
+      node.innerHTML = `
+        <div class="lvl-icon">${level.status === "locked" ? "🔒" : iconFor(level)}</div>
+        <div class="lvl-num">${level.level_number}</div>
+      `;
+      if (level.status !== "locked") {
+        node.onclick = () => { window.location.href = `jungle-game.html?level=${level.id}`; };
+      }
+      wrap.appendChild(node);
+    });
+  }
+
+  async function load() {
+    state = await api.childMe();
+    render();
+  }
+
+  document.addEventListener("lq:i18n-ready", () => { if (state) render(); });
+  document.addEventListener("lq:lang-changed", async () => {
+    try { await api.childUpdate({ language: getLang() }); } catch (e) {}
+    load();
+  });
+
+  load();
+</script>
+</body>
+</html>
