@@ -88,8 +88,12 @@
   }
 
   async function load() {
-    state = await api.childMe();
-    render();
+    try {
+      state = await api.childMe();
+      render();
+    } catch (err) {
+      document.getElementById("worldGrid").innerHTML = `<div class="card"><h3>Could not load game worlds</h3><p class="error-text">${err.message}</p><button class="btn btn-primary" onclick="location.reload()">Retry</button></div>`;
+    }
   }
 
   document.addEventListener("lq:i18n-ready", () => { if (state) render(); });

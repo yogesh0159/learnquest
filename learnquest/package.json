@@ -1,11 +1,15 @@
 {
-  "name": "learnquest-root",
+  "name": "learnquest",
+  "version": "1.0.0",
   "private": true,
   "engines": {
     "node": "20.x"
   },
+  "packageManager": "npm@10.8.2",
   "scripts": {
-    "postinstall": "npm --prefix backend install",
-    "start": "npm --prefix backend start"
+    "postinstall": "npm --prefix backend install --omit=dev",
+    "start": "npm --prefix backend start",
+    "seed": "npm --prefix backend run seed",
+    "check": "npm --prefix backend run check"
   }
 }

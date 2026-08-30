@@ -90,7 +90,7 @@ async function openGateModal(level, onComplete) {
     finished = true;
     modal.innerHTML = `<div class="center" style="padding:30px 0;">${t("common_loading")}</div>`;
     try {
-      const result = await api.gateAttempt({ levelId: level.id, answers });
+      const result = await api.gateAttempt({ levelId: level.id, answers, runCoins: Number(level.run_coins || 0) });
       showResult(result);
     } catch (e) {
       modal.innerHTML = `<p>${e.message}</p><button class="btn btn-secondary" id="closeErr2">${t("common_close")}</button>`;

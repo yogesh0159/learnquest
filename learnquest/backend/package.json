@@ -1,1 +1,26 @@
-{ "name": "learnquest-backend", "version": "0.1.0", "description": "LearnQuest - gamified learning platform API (Phase 1-5 core loop)", "main": "server.js", "type": "commonjs", "engines": { "node": "20.x" }, "scripts": { "start": "node server.js", "seed": "node db/seed.js" }, "dependencies": { "better-sqlite3": "^11.3.0", "bcryptjs": "^2.4.3", "cors": "^2.8.5", "dotenv": "^16.4.5", "express": "^4.19.2", "jsonwebtoken": "^9.0.2", "nanoid": "^3.3.7" } }
+{
+  "name": "learnquest-backend",
+  "version": "1.0.0",
+  "description": "LearnQuest gamified learning platform API and game server",
+  "main": "server.js",
+  "type": "commonjs",
+  "engines": {
+    "node": "20.x"
+  },
+  "packageManager": "npm@10.8.2",
+  "scripts": {
+    "start": "node server.js",
+    "seed": "node db/seed.js",
+    "check": "node --check server.js && node --check db/index.js && node --check db/seed.js && node --check routes/auth.js && node --check routes/child.js && node --check routes/questions.js && node --check routes/game.js && node --check routes/rewards.js && node --check routes/parent.js && node --check routes/tasks.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.3.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.14.4",
+    "nanoid": "^3.3.7"
+  }
+}

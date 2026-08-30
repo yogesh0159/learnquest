@@ -1,35 +1,41 @@
 const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../utils/auth");
+const asyncRoute = require("../utils/async-route");
 
 const router = express.Router();
 
-// GET /api/tasks/mine -> child views their pending tasks
-router.get("/mine", requireAuth("child"), (req, res) => {
-  const tasks = db.prepare(
-    "SELECT * FROM parent_tasks WHERE child_id = ? ORDER BY created_at DESC"
-  ).all(req.user.id);
-  res.json({ tasks });
-});
-
-// POST /api/tasks/:id/complete -> child marks a task done, reward is granted
-router.post("/:id/complete", requireAuth("child"), (req, res) => {
-  const task = db.prepare("SELECT * FROM parent_tasks WHERE id = ? AND child_id = ?").get(
-    req.params.id, req.user.id
+router.get("/mine", requireAuth("child"), asyncRoute(async (req, res) => {
+  const tasks = await db.all(
+    "SELECT * FROM parent_tasks WHERE child_id = ? ORDER BY created_at DESC",
+    [req.user.id]
   );
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.status === "completed") return res.status(409).json({ error: "Already completed" });
+  res.json({ tasks });
+}));
 
-  db.prepare("UPDATE parent_tasks SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(task.id);
+router.post("/:id/complete", requireAuth("child"), asyncRoute(async (req, res) => {
+  const result = await db.transaction(async (tx) => {
+    const task = await tx.one(
+      "SELECT * FROM parent_tasks WHERE id = ? AND child_id = ?",
+      [req.params.id, req.user.id]
+    );
+    if (!task) { const err = new Error("Task not found"); err.status = 404; throw err; }
+    if (task.status === "completed") { const err = new Error("Already completed"); err.status = 409; throw err; }
 
-  if (task.reward_type === "coins") {
-    db.prepare("UPDATE children SET coins = coins + ? WHERE id = ?").run(task.reward_value, req.user.id);
-  }
-  // 'unlock_time' rewards (e.g. extra Adventure Mode minutes) are surfaced to the
-  // frontend as a flag; enforcing play-time limits is a Phase 9+ concern.
+    await tx.run(
+      "UPDATE parent_tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
+      ["completed", task.id]
+    );
 
-  const updated = db.prepare("SELECT coins FROM children WHERE id = ?").get(req.user.id);
-  res.json({ ok: true, newCoins: updated.coins });
-});
+    if (task.reward_type === "coins") {
+      await tx.run("UPDATE children SET coins = coins + ? WHERE id = ?", [Number(task.reward_value || 0), req.user.id]);
+    }
+
+    const updated = await tx.one("SELECT coins FROM children WHERE id = ?", [req.user.id]);
+    return { ok: true, newCoins: Number(updated?.coins || 0) };
+  });
+
+  res.json(result);
+}));
 
 module.exports = router;

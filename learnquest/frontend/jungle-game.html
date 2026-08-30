@@ -168,6 +168,7 @@
       if (gateOpened || this.gateTriggered) return;
       this.gateTriggered = true;
       this.player.setVelocityX(0);
+      levelData.run_coins = coinsCollected;
       openGateModal(levelData, (result) => {
         this.gateTriggered = false;
         if (result.passed) {
@@ -202,20 +203,25 @@
   }
 
   async function init() {
-    const me = await api.childMe();
-    levelData = me.jungleLevels.find((l) => l.id === levelId);
-    if (!levelData) { window.location.href = "world-jungle.html"; return; }
+    try {
+      if (!levelId) { window.location.href = "world-jungle.html"; return; }
+      const me = await api.childMe();
+      levelData = me.jungleLevels.find((l) => l.id === levelId);
+      if (!levelData || levelData.status === "locked") { window.location.href = "world-jungle.html"; return; }
 
-    new Phaser.Game({
-      type: Phaser.AUTO,
-      parent: "phaserHost",
-      width: window.innerWidth,
-      height: window.innerHeight,
-      backgroundColor: "#cdeecb",
-      physics: { default: "arcade", arcade: { gravity: { y: 900 }, debug: false } },
-      scene: JungleScene,
-      scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
-    });
+      new Phaser.Game({
+        type: Phaser.AUTO,
+        parent: "phaserHost",
+        width: window.innerWidth,
+        height: window.innerHeight,
+        backgroundColor: "#cdeecb",
+        physics: { default: "arcade", arcade: { gravity: { y: 900 }, debug: false } },
+        scene: JungleScene,
+        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
+      });
+    } catch (err) {
+      document.getElementById("phaserHost").innerHTML = `<div class="center" style="padding:100px 20px;"><h2>Game could not start</h2><p>${err.message}</p><a class="btn btn-primary" href="world-jungle.html">Back to map</a></div>`;
+    }
   }
 
   document.addEventListener("lq:i18n-ready", init, { once: true });

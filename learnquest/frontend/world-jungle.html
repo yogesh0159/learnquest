@@ -88,7 +88,7 @@
       const p = positions[i];
       const pct = (val, total) => `${(val / total) * 100}%`;
       const node = document.createElement("div");
-      const statusClass = level.is_boss ? "boss" : level.status;
+      const statusClass = level.status === "locked" ? "locked" : (level.is_boss ? "boss" : level.status);
       node.className = `path-node ${statusClass}`;
       node.style.left = pct(p.x, 700);
       node.style.top = pct(p.y, 1000);
@@ -104,8 +104,12 @@
   }
 
   async function load() {
-    state = await api.childMe();
-    render();
+    try {
+      state = await api.childMe();
+      render();
+    } catch (err) {
+      document.getElementById("mapSvgWrap").innerHTML = `<div class="card center"><h3>Could not load Jungle World</h3><p>${err.message}</p><a class="btn btn-primary" href="dashboard.html">Back</a></div>`;
+    }
   }
 
   document.addEventListener("lq:i18n-ready", () => { if (state) render(); });

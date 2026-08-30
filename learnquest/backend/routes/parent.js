@@ -2,95 +2,111 @@ const express = require("express");
 const { nanoid } = require("nanoid");
 const db = require("../db");
 const { requireAuth } = require("../utils/auth");
+const asyncRoute = require("../utils/async-route");
 
 const router = express.Router();
 
-function assertOwnsChild(parentId, childId) {
-  return db.prepare("SELECT id FROM children WHERE id = ? AND parent_id = ?").get(childId, parentId);
+async function ownsChild(parentId, childId, dbApi = db) {
+  return dbApi.one("SELECT id FROM children WHERE id = ? AND parent_id = ?", [childId, parentId]);
 }
 
-// GET /api/parent/dashboard/:childId
-router.get("/dashboard/:childId", requireAuth("parent"), (req, res) => {
-  const child = assertOwnsChild(req.user.id, req.params.childId);
-  if (!child) return res.status(403).json({ error: "Not your child profile" });
+router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, res) => {
+  if (!(await ownsChild(req.user.id, req.params.childId))) {
+    return res.status(403).json({ error: "Not your child profile" });
+  }
 
-  const childRow = db.prepare("SELECT * FROM children WHERE id = ?").get(req.params.childId);
-
-  // accuracy + attempts per subject
-  const subjectStats = db.prepare(`
-    SELECT s.id as subject_id, s.name_en,
-      COUNT(ql.id) as attempted,
-      SUM(ql.correct) as correct
+  const childRow = await db.one("SELECT * FROM children WHERE id = ?", [req.params.childId]);
+  const subjectStats = await db.all(`
+    SELECT s.id AS subject_id, s.name_en,
+      COUNT(ql.id) AS attempted,
+      COALESCE(SUM(ql.correct), 0) AS correct
     FROM question_log ql
     JOIN questions q ON q.id = ql.question_id
     JOIN subjects s ON s.id = q.subject_id
     WHERE ql.child_id = ?
-    GROUP BY s.id
-  `).all(req.params.childId);
+    GROUP BY s.id, s.name_en
+  `, [req.params.childId]);
 
-  // weak topics: topics with < 60% accuracy and at least 2 attempts
-  const topicStats = db.prepare(`
-    SELECT q.topic, s.name_en as subject,
-      COUNT(ql.id) as attempted,
-      SUM(ql.correct) as correct
+  const topicStats = await db.all(`
+    SELECT q.topic, s.name_en AS subject,
+      COUNT(ql.id) AS attempted,
+      COALESCE(SUM(ql.correct), 0) AS correct
     FROM question_log ql
     JOIN questions q ON q.id = ql.question_id
     JOIN subjects s ON s.id = q.subject_id
     WHERE ql.child_id = ?
-    GROUP BY q.topic
-    HAVING attempted >= 2
-  `).all(req.params.childId);
+    GROUP BY q.topic, s.name_en
+    HAVING COUNT(ql.id) >= 2
+  `, [req.params.childId]);
 
   const weakTopics = topicStats
-    .map((t) => ({ ...t, accuracy: Math.round((t.correct / t.attempted) * 100) }))
-    .filter((t) => t.accuracy < 60);
+    .map((row) => {
+      const attempted = Number(row.attempted || 0);
+      const correct = Number(row.correct || 0);
+      return { ...row, attempted, correct, accuracy: attempted ? Math.round((correct / attempted) * 100) : 0 };
+    })
+    .filter((row) => row.accuracy < 60);
 
-  const last7 = db.prepare(`
+  const last7 = await db.all(`
     SELECT * FROM daily_activity WHERE child_id = ?
     ORDER BY activity_date DESC LIMIT 7
-  `).all(req.params.childId);
+  `, [req.params.childId]);
 
-  const totalAttempted = subjectStats.reduce((s, r) => s + r.attempted, 0);
-  const totalCorrect = subjectStats.reduce((s, r) => s + (r.correct || 0), 0);
+  const normalizedStats = subjectStats.map((row) => ({
+    subject: row.name_en,
+    attempted: Number(row.attempted || 0),
+    correct: Number(row.correct || 0),
+  }));
+  const totalAttempted = normalizedStats.reduce((sum, row) => sum + row.attempted, 0);
+  const totalCorrect = normalizedStats.reduce((sum, row) => sum + row.correct, 0);
 
   res.json({
     child: {
-      id: childRow.id, name: childRow.name, age: childRow.age, language: childRow.language,
-      xp: childRow.xp, coins: childRow.coins, overall_level: childRow.overall_level,
-      streak_count: childRow.streak_count,
+      id: childRow.id,
+      name: childRow.name,
+      age: Number(childRow.age),
+      language: childRow.language,
+      xp: Number(childRow.xp || 0),
+      coins: Number(childRow.coins || 0),
+      overall_level: Number(childRow.overall_level || 1),
+      streak_count: Number(childRow.streak_count || 0),
     },
     overallAccuracy: totalAttempted ? Math.round((totalCorrect / totalAttempted) * 100) : null,
-    subjectStats: subjectStats.map((s) => ({
-      subject: s.name_en,
-      attempted: s.attempted,
-      correct: s.correct || 0,
-      accuracy: s.attempted ? Math.round(((s.correct || 0) / s.attempted) * 100) : null,
+    subjectStats: normalizedStats.map((row) => ({
+      ...row,
+      accuracy: row.attempted ? Math.round((row.correct / row.attempted) * 100) : null,
     })),
     weakTopics,
     last7Days: last7,
   });
-});
+}));
 
-// POST /api/parent/tasks -> create a custom task for a child
-router.post("/tasks", requireAuth("parent"), (req, res) => {
-  const { childId, title, description, rewardType, rewardValue } = req.body;
-  if (!assertOwnsChild(req.user.id, childId)) return res.status(403).json({ error: "Not your child profile" });
+router.post("/tasks", requireAuth("parent"), asyncRoute(async (req, res) => {
+  const childId = String(req.body?.childId || "");
+  const title = String(req.body?.title || "").trim();
+  const description = String(req.body?.description || "").trim();
+  const rewardType = "coins";
+  const rewardValue = Math.max(0, Math.min(10000, Number(req.body?.rewardValue || 0)));
+
+  if (!(await ownsChild(req.user.id, childId))) return res.status(403).json({ error: "Not your child profile" });
   if (!title) return res.status(400).json({ error: "title is required" });
 
   const id = `task_${nanoid(10)}`;
-  db.prepare(`
+  await db.run(`
     INSERT INTO parent_tasks (id, parent_id, child_id, title, description, reward_type, reward_value)
     VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(id, req.user.id, childId, title, description || "", rewardType || "coins", rewardValue || 0);
+  `, [id, req.user.id, childId, title, description, rewardType, rewardValue]);
 
-  res.json({ ok: true, taskId: id });
-});
+  res.status(201).json({ ok: true, taskId: id });
+}));
 
-// GET /api/parent/tasks/:childId -> list tasks (parent view)
-router.get("/tasks/:childId", requireAuth("parent"), (req, res) => {
-  if (!assertOwnsChild(req.user.id, req.params.childId)) return res.status(403).json({ error: "Not your child profile" });
-  const tasks = db.prepare("SELECT * FROM parent_tasks WHERE child_id = ? ORDER BY created_at DESC").all(req.params.childId);
+router.get("/tasks/:childId", requireAuth("parent"), asyncRoute(async (req, res) => {
+  if (!(await ownsChild(req.user.id, req.params.childId))) return res.status(403).json({ error: "Not your child profile" });
+  const tasks = await db.all(
+    "SELECT * FROM parent_tasks WHERE child_id = ? ORDER BY created_at DESC",
+    [req.params.childId]
+  );
   res.json({ tasks });
-});
+}));
 
 module.exports = router;

@@ -1,6 +1,7 @@
 const express = require("express");
 const db = require("../db");
 const { requireAuth } = require("../utils/auth");
+const asyncRoute = require("../utils/async-route");
 
 const router = express.Router();
 
@@ -13,51 +14,43 @@ function shuffle(arr) {
   return a;
 }
 
-// GET /api/questions?subject=maths&count=3
-// Returns questions matched to the logged-in child's age group.
-// Options are shuffled and correct_index is withheld (answers are checked server-side).
-router.get("/", requireAuth("child"), (req, res) => {
-  const { subject, count = 3 } = req.query;
+router.get("/", requireAuth("child"), asyncRoute(async (req, res) => {
+  const subject = String(req.query.subject || "").trim();
+  const wanted = Math.min(10, Math.max(1, Number(req.query.count || 3)));
   if (!subject) return res.status(400).json({ error: "subject query param required" });
 
-  const child = db.prepare("SELECT age_group, language FROM children WHERE id = ?").get(req.user.id);
-  const rows = db.prepare(
-    "SELECT * FROM questions WHERE subject_id = ? AND age_group = ?"
-  ).all(subject, child.age_group);
+  const child = await db.one("SELECT age_group, language FROM children WHERE id = ?", [req.user.id]);
+  if (!child) return res.status(404).json({ error: "Child not found" });
 
-  const wanted = Number(count);
-  let picked;
+  const rows = await db.all(
+    "SELECT * FROM questions WHERE subject_id = ? AND age_group = ?",
+    [subject, child.age_group]
+  );
+
   if (rows.length === 0) {
-    picked = [];
-  } else if (rows.length >= wanted) {
-    picked = shuffle(rows).slice(0, wanted);
-  } else {
-    // Demo question bank is intentionally small; sample with replacement
-    // (reshuffling each lap) so Boss Battles that need more correct answers
-    // than there are unique questions can still be played. A production
-    // deployment should simply seed enough questions per subject/age group.
-    picked = [];
-    while (picked.length < wanted) {
-      picked.push(...shuffle(rows));
-    }
-    picked = picked.slice(0, wanted);
+    return res.status(404).json({ error: "No questions available for this subject and age group" });
   }
-  const lang = child.language;
 
+  const picked = shuffle(rows).slice(0, Math.min(wanted, rows.length));
+
+  const lang = ["en", "hi", "mr"].includes(child.language) ? child.language : "en";
   const payload = picked.map((q) => {
-    const options = JSON.parse(q.options_json);
+    const rawOptions = JSON.parse(q.options_json);
+    const options = rawOptions.map((option) => {
+      if (option && typeof option === "object") return option[lang] || option.en || Object.values(option)[0];
+      return option;
+    });
     return {
       id: q.id,
       topic: q.topic,
       difficulty: q.difficulty,
       question: q[`question_${lang}`] || q.question_en,
       options,
-      xp_reward: q.xp_reward,
-      // correct_index intentionally omitted
+      xp_reward: Number(q.xp_reward || 0),
     };
   });
 
   res.json({ questions: payload });
-});
+}));
 
 module.exports = router;
