@@ -220,6 +220,54 @@ questions.push(
   { subject_id:"gk", topic:"Environment", age_group:"10-12", difficulty:"hard", question_en:"Which gas do plants mainly absorb from air?", question_hi:"पौधे हवा से मुख्यतः कौन सी गैस लेते हैं?", question_mr:"वनस्पती हवेतून मुख्यतः कोणता वायू घेतात?", options:[{en:"Oxygen",hi:"ऑक्सीजन",mr:"ऑक्सिजन"},{en:"Carbon dioxide",hi:"कार्बन डाइऑक्साइड",mr:"कार्बन डायऑक्साइड"},{en:"Hydrogen",hi:"हाइड्रोजन",mr:"हायड्रोजन"},{en:"Helium",hi:"हीलियम",mr:"हीलियम"}], correct_index:1, explanation_en:"Plants absorb carbon dioxide for photosynthesis.", explanation_hi:"पौधे प्रकाश संश्लेषण के लिए कार्बन डाइऑक्साइड लेते हैं।", explanation_mr:"वनस्पती प्रकाशसंश्लेषणासाठी कार्बन डायऑक्साइड घेतात.", xp_reward:20 }
 );
 
+
+// Extra variety for runner gates. Every subject + age group now has at least
+// eight bundled questions, so repeated runs stay fresh while deterministic IDs
+// remain stable for all previously shipped q_001..q_042 records.
+questions.push(
+  // English 4-6
+  { subject_id:"english", topic:"Letters", age_group:"4-6", difficulty:"easy", question_en:"Which letter comes after B?", question_hi:"B के बाद कौन सा अक्षर आता है?", question_mr:"B नंतर कोणते अक्षर येते?", options:["A","C","D","E"], correct_index:1, explanation_en:"C comes after B.", explanation_hi:"B के बाद C आता है।", explanation_mr:"B नंतर C येते.", xp_reward:10 },
+  { subject_id:"english", topic:"Colors", age_group:"4-6", difficulty:"easy", question_en:"Which word is a color?", question_hi:"कौन सा शब्द एक रंग है?", question_mr:"कोणता शब्द रंग आहे?", options:["Jump","Red","Book","Sing"], correct_index:1, explanation_en:"Red is a color.", explanation_hi:"Red एक रंग है।", explanation_mr:"Red हा रंग आहे.", xp_reward:10 },
+  { subject_id:"english", topic:"Opposites", age_group:"4-6", difficulty:"easy", question_en:"What is the opposite of 'up'?", question_hi:"'up' का विपरीत क्या है?", question_mr:"'up' चा विरुद्धार्थी शब्द कोणता?", options:["Down","Near","Fast","Open"], correct_index:0, explanation_en:"The opposite of up is down.", explanation_hi:"Up का विपरीत down है।", explanation_mr:"Up चा विरुद्धार्थी down आहे.", xp_reward:10 },
+  { subject_id:"english", topic:"Sounds", age_group:"4-6", difficulty:"easy", question_en:"Which word starts with S?", question_hi:"कौन सा शब्द S से शुरू होता है?", question_mr:"कोणता शब्द S ने सुरू होतो?", options:["Cat","Sun","Dog","Map"], correct_index:1, explanation_en:"Sun starts with S.", explanation_hi:"Sun, S से शुरू होता है।", explanation_mr:"Sun हा S ने सुरू होतो.", xp_reward:10 },
+  { subject_id:"english", topic:"Vocabulary", age_group:"4-6", difficulty:"easy", question_en:"Which word names an animal?", question_hi:"कौन सा शब्द एक जानवर का नाम है?", question_mr:"कोणता शब्द प्राण्याचे नाव आहे?", options:["Dog","Cup","Blue","Run"], correct_index:0, explanation_en:"Dog is an animal.", explanation_hi:"Dog एक जानवर है।", explanation_mr:"Dog हा प्राणी आहे.", xp_reward:10 },
+
+  // English 7-9
+  { subject_id:"english", topic:"Grammar", age_group:"7-9", difficulty:"medium", question_en:"What is the past tense of 'go'?", question_hi:"'go' का past tense क्या है?", question_mr:"'go' चे past tense काय आहे?", options:["goed","went","gone","going"], correct_index:1, explanation_en:"The past tense of go is went.", explanation_hi:"Go का past tense went है।", explanation_mr:"Go चे past tense went आहे.", xp_reward:15 },
+  { subject_id:"english", topic:"Synonyms", age_group:"7-9", difficulty:"medium", question_en:"Which word is closest in meaning to 'happy'?", question_hi:"'happy' के सबसे समान अर्थ वाला शब्द कौन सा है?", question_mr:"'happy' सारखा अर्थ असलेला शब्द कोणता?", options:["glad","angry","weak","dark"], correct_index:0, explanation_en:"Glad means happy.", explanation_hi:"Glad का अर्थ happy है।", explanation_mr:"Glad म्हणजे happy.", xp_reward:15 },
+  { subject_id:"english", topic:"Grammar", age_group:"7-9", difficulty:"medium", question_en:"What is the plural of 'child'?", question_hi:"'child' का plural क्या है?", question_mr:"'child' चे plural काय आहे?", options:["childs","childes","children","childrens"], correct_index:2, explanation_en:"The plural of child is children.", explanation_hi:"Child का plural children है।", explanation_mr:"Child चे plural children आहे.", xp_reward:15 },
+  { subject_id:"english", topic:"Grammar", age_group:"7-9", difficulty:"medium", question_en:"Choose the adjective in 'the blue kite'.", question_hi:"'the blue kite' में adjective चुनें।", question_mr:"'the blue kite' मधील adjective निवडा.", options:["the","blue","kite","none"], correct_index:1, explanation_en:"Blue describes the kite, so it is the adjective.", explanation_hi:"Blue, kite का वर्णन करता है, इसलिए adjective है।", explanation_mr:"Blue हे kite चे वर्णन करते, म्हणून ते adjective आहे.", xp_reward:15 },
+  { subject_id:"english", topic:"Spelling", age_group:"7-9", difficulty:"medium", question_en:"Choose the correct spelling.", question_hi:"सही spelling चुनें।", question_mr:"योग्य spelling निवडा.", options:["beautifull","beutiful","beautiful","beatiful"], correct_index:2, explanation_en:"Beautiful is the correct spelling.", explanation_hi:"Beautiful सही spelling है।", explanation_mr:"Beautiful ही योग्य spelling आहे.", xp_reward:15 },
+
+  // English 10-12
+  { subject_id:"english", topic:"Opposites", age_group:"10-12", difficulty:"hard", question_en:"Which word is the opposite of 'ancient'?", question_hi:"'ancient' का विपरीत शब्द कौन सा है?", question_mr:"'ancient' चा विरुद्धार्थी शब्द कोणता?", options:["old","modern","historic","ruined"], correct_index:1, explanation_en:"Modern is the opposite of ancient.", explanation_hi:"Modern, ancient का विपरीत है।", explanation_mr:"Modern हा ancient चा विरुद्धार्थी शब्द आहे.", xp_reward:20 },
+  { subject_id:"english", topic:"Grammar", age_group:"10-12", difficulty:"hard", question_en:"Identify the adverb in 'The tiger runs quickly.'", question_hi:"'The tiger runs quickly.' में adverb पहचानें।", question_mr:"'The tiger runs quickly.' मधील adverb ओळखा.", options:["tiger","runs","quickly","the"], correct_index:2, explanation_en:"Quickly tells how the tiger runs, so it is an adverb.", explanation_hi:"Quickly बताता है कि tiger कैसे runs करता है, इसलिए यह adverb है।", explanation_mr:"Quickly हे tiger कसा runs करतो ते सांगते, म्हणून ते adverb आहे.", xp_reward:20 },
+  { subject_id:"english", topic:"Grammar", age_group:"10-12", difficulty:"hard", question_en:"Choose the correct sentence.", question_hi:"सही वाक्य चुनें।", question_mr:"योग्य वाक्य निवडा.", options:["She write every day.","She writes every day.","She writing every day.","She written every day."], correct_index:1, explanation_en:"'She writes every day' has correct subject-verb agreement.", explanation_hi:"'She writes every day' में subject-verb agreement सही है।", explanation_mr:"'She writes every day' मध्ये subject-verb agreement योग्य आहे.", xp_reward:20 },
+  { subject_id:"english", topic:"Synonyms", age_group:"10-12", difficulty:"hard", question_en:"Which word is closest in meaning to 'enormous'?", question_hi:"'enormous' के सबसे समान अर्थ वाला शब्द कौन सा है?", question_mr:"'enormous' सारखा अर्थ असलेला शब्द कोणता?", options:["tiny","huge","soft","empty"], correct_index:1, explanation_en:"Huge means enormous.", explanation_hi:"Huge का अर्थ enormous है।", explanation_mr:"Huge म्हणजे enormous.", xp_reward:20 },
+  { subject_id:"english", topic:"Grammar", age_group:"10-12", difficulty:"hard", question_en:"Which word is the noun in 'Courage helps us act'?", question_hi:"'Courage helps us act' में noun कौन सा है?", question_mr:"'Courage helps us act' मध्ये noun कोणता?", options:["Courage","helps","us","act"], correct_index:0, explanation_en:"Courage is an abstract noun.", explanation_hi:"Courage एक abstract noun है।", explanation_mr:"Courage हे abstract noun आहे.", xp_reward:20 },
+
+  // GK 4-6
+  { subject_id:"gk", topic:"Nature", age_group:"4-6", difficulty:"easy", question_en:"From which direction does the Sun rise?", question_hi:"सूरज किस दिशा से उगता है?", question_mr:"सूर्य कोणत्या दिशेला उगवतो?", options:[{en:"East",hi:"पूर्व",mr:"पूर्व"},{en:"West",hi:"पश्चिम",mr:"पश्चिम"},{en:"North",hi:"उत्तर",mr:"उत्तर"},{en:"South",hi:"दक्षिण",mr:"दक्षिण"}], correct_index:0, explanation_en:"The Sun rises in the east.", explanation_hi:"सूरज पूर्व दिशा से उगता है।", explanation_mr:"सूर्य पूर्व दिशेला उगवतो.", xp_reward:10 },
+  { subject_id:"gk", topic:"Animals", age_group:"4-6", difficulty:"easy", question_en:"How many legs does a spider have?", question_hi:"मकड़ी के कितने पैर होते हैं?", question_mr:"कोळ्याला किती पाय असतात?", options:["4","6","8","10"], correct_index:2, explanation_en:"A spider has 8 legs.", explanation_hi:"मकड़ी के 8 पैर होते हैं।", explanation_mr:"कोळ्याला 8 पाय असतात.", xp_reward:10 },
+  { subject_id:"gk", topic:"Nature", age_group:"4-6", difficulty:"easy", question_en:"What color are most healthy leaves?", question_hi:"अधिकांश स्वस्थ पत्तियाँ किस रंग की होती हैं?", question_mr:"बहुतेक निरोगी पाने कोणत्या रंगाची असतात?", options:[{en:"Green",hi:"हरा",mr:"हिरवा"},{en:"Purple",hi:"बैंगनी",mr:"जांभळा"},{en:"Black",hi:"काला",mr:"काळा"},{en:"Pink",hi:"गुलाबी",mr:"गुलाबी"}], correct_index:0, explanation_en:"Most healthy leaves are green.", explanation_hi:"अधिकांश स्वस्थ पत्तियाँ हरी होती हैं।", explanation_mr:"बहुतेक निरोगी पाने हिरवी असतात.", xp_reward:10 },
+  { subject_id:"gk", topic:"Science", age_group:"4-6", difficulty:"easy", question_en:"What does water become when it freezes?", question_hi:"पानी जमने पर क्या बनता है?", question_mr:"पाणी गोठल्यावर काय बनते?", options:[{en:"Ice",hi:"बर्फ",mr:"बर्फ"},{en:"Steam",hi:"भाप",mr:"वाफ"},{en:"Sand",hi:"रेत",mr:"वाळू"},{en:"Smoke",hi:"धुआँ",mr:"धूर"}], correct_index:0, explanation_en:"Frozen water becomes ice.", explanation_hi:"जमा हुआ पानी बर्फ बनता है।", explanation_mr:"गोठलेले पाणी बर्फ बनते.", xp_reward:10 },
+  { subject_id:"gk", topic:"India", age_group:"4-6", difficulty:"easy", question_en:"Which is the national animal of India?", question_hi:"भारत का राष्ट्रीय पशु कौन सा है?", question_mr:"भारताचा राष्ट्रीय प्राणी कोणता?", options:[{en:"Tiger",hi:"बाघ",mr:"वाघ"},{en:"Elephant",hi:"हाथी",mr:"हत्ती"},{en:"Horse",hi:"घोड़ा",mr:"घोडा"},{en:"Bear",hi:"भालू",mr:"अस्वल"}], correct_index:0, explanation_en:"The Bengal tiger is India's national animal.", explanation_hi:"बंगाल टाइगर भारत का राष्ट्रीय पशु है।", explanation_mr:"बंगाल वाघ हा भारताचा राष्ट्रीय प्राणी आहे.", xp_reward:10 },
+
+  // GK 7-9
+  { subject_id:"gk", topic:"Space", age_group:"7-9", difficulty:"medium", question_en:"Which is the largest planet in our solar system?", question_hi:"हमारे सौरमंडल का सबसे बड़ा ग्रह कौन सा है?", question_mr:"आपल्या सौरमालेतील सर्वात मोठा ग्रह कोणता?", options:[{en:"Earth",hi:"पृथ्वी",mr:"पृथ्वी"},{en:"Mars",hi:"मंगल",mr:"मंगळ"},{en:"Jupiter",hi:"बृहस्पति",mr:"गुरू"},{en:"Mercury",hi:"बुध",mr:"बुध"}], correct_index:2, explanation_en:"Jupiter is the largest planet.", explanation_hi:"बृहस्पति सबसे बड़ा ग्रह है।", explanation_mr:"गुरू हा सर्वात मोठा ग्रह आहे.", xp_reward:15 },
+  { subject_id:"gk", topic:"Science", age_group:"7-9", difficulty:"medium", question_en:"What process do plants use to make food?", question_hi:"पौधे भोजन बनाने के लिए किस प्रक्रिया का उपयोग करते हैं?", question_mr:"वनस्पती अन्न तयार करण्यासाठी कोणती प्रक्रिया वापरतात?", options:[{en:"Photosynthesis",hi:"प्रकाश संश्लेषण",mr:"प्रकाशसंश्लेषण"},{en:"Evaporation",hi:"वाष्पीकरण",mr:"बाष्पीभवन"},{en:"Melting",hi:"पिघलना",mr:"वितळणे"},{en:"Freezing",hi:"जमना",mr:"गोठणे"}], correct_index:0, explanation_en:"Plants make food by photosynthesis.", explanation_hi:"पौधे प्रकाश संश्लेषण से भोजन बनाते हैं।", explanation_mr:"वनस्पती प्रकाशसंश्लेषणाने अन्न तयार करतात.", xp_reward:15 },
+  { subject_id:"gk", topic:"Geography", age_group:"7-9", difficulty:"medium", question_en:"How many continents are there?", question_hi:"कुल कितने महाद्वीप हैं?", question_mr:"एकूण किती खंड आहेत?", options:["5","6","7","8"], correct_index:2, explanation_en:"There are 7 continents.", explanation_hi:"7 महाद्वीप हैं।", explanation_mr:"7 खंड आहेत.", xp_reward:15 },
+  { subject_id:"gk", topic:"Science", age_group:"7-9", difficulty:"medium", question_en:"Which instrument measures temperature?", question_hi:"तापमान मापने के लिए कौन सा उपकरण उपयोग होता है?", question_mr:"तापमान मोजण्यासाठी कोणते उपकरण वापरतात?", options:[{en:"Thermometer",hi:"थर्मामीटर",mr:"थर्मामीटर"},{en:"Compass",hi:"कंपास",mr:"होकायंत्र"},{en:"Ruler",hi:"स्केल",mr:"पट्टी"},{en:"Clock",hi:"घड़ी",mr:"घड्याळ"}], correct_index:0, explanation_en:"A thermometer measures temperature.", explanation_hi:"थर्मामीटर तापमान मापता है।", explanation_mr:"थर्मामीटर तापमान मोजतो.", xp_reward:15 },
+  { subject_id:"gk", topic:"India", age_group:"7-9", difficulty:"medium", question_en:"Which city is the capital of India?", question_hi:"भारत की राजधानी कौन सा शहर है?", question_mr:"भारताची राजधानी कोणते शहर आहे?", options:["Mumbai","New Delhi","Jaipur","Pune"], correct_index:1, explanation_en:"New Delhi is the capital of India.", explanation_hi:"नई दिल्ली भारत की राजधानी है।", explanation_mr:"नवी दिल्ली भारताची राजधानी आहे.", xp_reward:15 },
+
+  // GK 10-12
+  { subject_id:"gk", topic:"Science", age_group:"10-12", difficulty:"hard", question_en:"At sea level, water boils at approximately what temperature?", question_hi:"समुद्र तल पर पानी लगभग किस तापमान पर उबलता है?", question_mr:"समुद्रसपाटीवर पाणी साधारण किती तापमानाला उकळते?", options:["50°C","75°C","100°C","150°C"], correct_index:2, explanation_en:"At sea level, water boils at about 100°C.", explanation_hi:"समुद्र तल पर पानी लगभग 100°C पर उबलता है।", explanation_mr:"समुद्रसपाटीवर पाणी साधारण 100°C ला उकळते.", xp_reward:20 },
+  { subject_id:"gk", topic:"Geography", age_group:"10-12", difficulty:"hard", question_en:"Which is the largest ocean on Earth?", question_hi:"पृथ्वी का सबसे बड़ा महासागर कौन सा है?", question_mr:"पृथ्वीवरील सर्वात मोठा महासागर कोणता?", options:[{en:"Pacific",hi:"प्रशांत",mr:"पॅसिफिक"},{en:"Atlantic",hi:"अटलांटिक",mr:"अटलांटिक"},{en:"Indian",hi:"हिंद",mr:"हिंदी"},{en:"Arctic",hi:"आर्कटिक",mr:"आर्क्टिक"}], correct_index:0, explanation_en:"The Pacific Ocean is the largest.", explanation_hi:"प्रशांत महासागर सबसे बड़ा है।", explanation_mr:"पॅसिफिक महासागर सर्वात मोठा आहे.", xp_reward:20 },
+  { subject_id:"gk", topic:"Environment", age_group:"10-12", difficulty:"hard", question_en:"Which gas is released by plants during photosynthesis?", question_hi:"प्रकाश संश्लेषण के दौरान पौधे कौन सी गैस छोड़ते हैं?", question_mr:"प्रकाशसंश्लेषणाच्या वेळी वनस्पती कोणता वायू सोडतात?", options:[{en:"Oxygen",hi:"ऑक्सीजन",mr:"ऑक्सिजन"},{en:"Nitrogen",hi:"नाइट्रोजन",mr:"नायट्रोजन"},{en:"Helium",hi:"हीलियम",mr:"हीलियम"},{en:"Methane",hi:"मीथेन",mr:"मिथेन"}], correct_index:0, explanation_en:"Plants release oxygen during photosynthesis.", explanation_hi:"पौधे प्रकाश संश्लेषण के दौरान ऑक्सीजन छोड़ते हैं।", explanation_mr:"वनस्पती प्रकाशसंश्लेषणाच्या वेळी ऑक्सिजन सोडतात.", xp_reward:20 },
+  { subject_id:"gk", topic:"Science", age_group:"10-12", difficulty:"hard", question_en:"Which force pulls objects toward Earth?", question_hi:"कौन सा बल वस्तुओं को पृथ्वी की ओर खींचता है?", question_mr:"कोणते बल वस्तूंना पृथ्वीकडे ओढते?", options:[{en:"Gravity",hi:"गुरुत्वाकर्षण",mr:"गुरुत्वाकर्षण"},{en:"Magnetism",hi:"चुंबकत्व",mr:"चुंबकत्व"},{en:"Friction",hi:"घर्षण",mr:"घर्षण"},{en:"Electricity",hi:"विद्युत",mr:"वीज"}], correct_index:0, explanation_en:"Gravity pulls objects toward Earth.", explanation_hi:"गुरुत्वाकर्षण वस्तुओं को पृथ्वी की ओर खींचता है।", explanation_mr:"गुरुत्वाकर्षण वस्तूंना पृथ्वीकडे ओढते.", xp_reward:20 },
+  { subject_id:"gk", topic:"Human Body", age_group:"10-12", difficulty:"hard", question_en:"What is the largest organ of the human body?", question_hi:"मानव शरीर का सबसे बड़ा अंग कौन सा है?", question_mr:"मानवी शरीरातील सर्वात मोठा अवयव कोणता?", options:[{en:"Skin",hi:"त्वचा",mr:"त्वचा"},{en:"Heart",hi:"हृदय",mr:"हृदय"},{en:"Brain",hi:"मस्तिष्क",mr:"मेंदू"},{en:"Lung",hi:"फेफड़ा",mr:"फुफ्फुस"}], correct_index:0, explanation_en:"The skin is the body's largest organ.", explanation_hi:"त्वचा शरीर का सबसे बड़ा अंग है।", explanation_mr:"त्वचा हा शरीरातील सर्वात मोठा अवयव आहे.", xp_reward:20 }
+);
+
 const worlds = [
   { id: "jungle", name_en: "Jungle World", name_hi: "जंगल दुनिया", name_mr: "जंगल जग", emoji: "🌳", is_active: 1, sort_order: 1 },
   { id: "maths_kingdom", name_en: "Maths Kingdom", name_hi: "गणित साम्राज्य", name_mr: "गणित राज्य", emoji: "🏰", is_active: 0, sort_order: 2 },
@@ -245,7 +293,9 @@ const rewards = [
   { id: "reward_jungle_cape", name_en: "Jungle Cape", name_hi: "जंगल लबादा", name_mr: "जंगल झगा", type: "clothes", cost_coins: 100, emoji: "🧥" },
   { id: "reward_pet_parrot", name_en: "Pet Parrot", name_hi: "पालतू तोता", name_mr: "पाळीव पोपट", type: "pet", cost_coins: 150, emoji: "🦜" },
   { id: "reward_wooden_sword", name_en: "Wooden Sword", name_hi: "लकड़ी की तलवार", name_mr: "लाकडी तलवार", type: "sword", cost_coins: 120, emoji: "🗡️" },
-  { id: "reward_magic_sparkle", name_en: "Magic Sparkle", name_hi: "जादुई चमक", name_mr: "जादुई चमक", type: "power", cost_coins: 200, emoji: "✨" },
+  { id: "reward_magic_sparkle", name_en: "Guardian Shield", name_hi: "रक्षक ढाल", name_mr: "रक्षक ढाल", type: "power", cost_coins: 200, emoji: "🛡️" },
+  { id: "reward_coin_magnet", name_en: "Coin Magnet", name_hi: "कॉइन मैग्नेट", name_mr: "कॉइन मॅग्नेट", type: "power", cost_coins: 220, emoji: "🧲" },
+  { id: "reward_focus_charm", name_en: "Focus Charm", name_hi: "फोकस ताबीज", name_mr: "फोकस ताईत", type: "power", cost_coins: 260, emoji: "⚡" },
   { id: "reward_bamboo_raft", name_en: "Bamboo Raft", name_hi: "बांस की बेड़ा", name_mr: "बांबूचा तराफा", type: "vehicle", cost_coins: 250, emoji: "🛶" },
   { id: "reward_treehouse", name_en: "Treehouse Decor", name_hi: "ट्रीहाउस सजावट", name_mr: "ट्रीहाऊस सजावट", type: "decoration", cost_coins: 180, emoji: "🏡" },
 ];
@@ -270,24 +320,27 @@ async function seedDatabase() {
     await upsertById("subjects", id, fields);
   }
 
-  const questionCountRow = await db.one("SELECT COUNT(*) AS count FROM questions");
-  const questionCount = Number(questionCountRow?.count || 0);
-  if (questionCount === 0) {
-    for (let i = 0; i < questions.length; i++) {
-      const q = questions[i];
-      const qid = `q_${String(i + 1).padStart(3, "0")}`;
-      await db.run(`
-        INSERT INTO questions
-        (id, subject_id, topic, age_group, difficulty, question_en, question_hi, question_mr,
-         options_json, correct_index, explanation_en, explanation_hi, explanation_mr, xp_reward)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `, [
-        qid, q.subject_id, q.topic, q.age_group, q.difficulty,
-        q.question_en, q.question_hi, q.question_mr,
-        JSON.stringify(q.options), q.correct_index,
-        q.explanation_en, q.explanation_hi, q.explanation_mr, q.xp_reward,
-      ]);
-    }
+  // Questions use deterministic IDs and are always upserted. This makes upgrades safe:
+  // an older Railway database automatically receives new bundled questions without
+  // deleting child history that already points at q_001, q_002, and so on.
+  for (let i = 0; i < questions.length; i++) {
+    const q = questions[i];
+    const qid = `q_${String(i + 1).padStart(3, "0")}`;
+    await upsertById("questions", qid, {
+      subject_id: q.subject_id,
+      topic: q.topic,
+      age_group: q.age_group,
+      difficulty: q.difficulty,
+      question_en: q.question_en,
+      question_hi: q.question_hi,
+      question_mr: q.question_mr,
+      options_json: JSON.stringify(q.options),
+      correct_index: q.correct_index,
+      explanation_en: q.explanation_en,
+      explanation_hi: q.explanation_hi,
+      explanation_mr: q.explanation_mr,
+      xp_reward: q.xp_reward,
+    });
   }
 
   for (const world of worlds) {
@@ -300,13 +353,10 @@ async function seedDatabase() {
     await upsertById("game_levels", id, { world_id: "jungle", ...level });
   }
 
-  const rewardCountRow = await db.one("SELECT COUNT(*) AS count FROM rewards");
-  const rewardCount = Number(rewardCountRow?.count || 0);
-  if (rewardCount === 0) {
-    for (const reward of rewards) {
-      const { id, ...fields } = reward;
-      await upsertById("rewards", id, fields);
-    }
+  // Rewards are always upserted so production databases receive newly added gear on redeploy.
+  for (const reward of rewards) {
+    const { id, ...fields } = reward;
+    await upsertById("rewards", id, fields);
   }
 
   const children = await db.all("SELECT id FROM children");
@@ -319,6 +369,28 @@ async function seedDatabase() {
       await db.run(
         "INSERT INTO child_level_progress (id, child_id, level_id, status) VALUES (?, ?, ?, ?)",
         [`clp_${nanoid(10)}`, child.id, "jungle_lvl_1", "unlocked"]
+      );
+    }
+
+    const starterOwned = await db.one(
+      "SELECT id FROM child_rewards WHERE child_id = ? AND reward_id = ?",
+      [child.id, "reward_forest_fox"]
+    );
+    if (!starterOwned) {
+      await db.run(
+        "INSERT INTO child_rewards (id, child_id, reward_id) VALUES (?, ?, ?)",
+        [`cr_${nanoid(10)}`, child.id, "reward_forest_fox"]
+      );
+    }
+
+    const equippedCharacter = await db.one(
+      "SELECT id FROM child_equipped_rewards WHERE child_id = ? AND slot = ?",
+      [child.id, "character"]
+    );
+    if (!equippedCharacter) {
+      await db.run(
+        "INSERT INTO child_equipped_rewards (id, child_id, slot, reward_id) VALUES (?, ?, ?, ?)",
+        [`cer_${nanoid(10)}`, child.id, "character", "reward_forest_fox"]
       );
     }
   }

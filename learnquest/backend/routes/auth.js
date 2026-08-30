@@ -80,6 +80,18 @@ router.post("/child/create", requireAuth("parent"), asyncRoute(async (req, res) 
         [`clp_${nanoid(10)}`, id, level1.id, "unlocked"]
       );
     }
+
+    const starterReward = await tx.one("SELECT id FROM rewards WHERE id = ?", ["reward_forest_fox"]);
+    if (starterReward) {
+      await tx.run(
+        "INSERT INTO child_rewards (id, child_id, reward_id) VALUES (?, ?, ?)",
+        [`cr_${nanoid(10)}`, id, starterReward.id]
+      );
+      await tx.run(
+        "INSERT INTO child_equipped_rewards (id, child_id, slot, reward_id) VALUES (?, ?, ?, ?)",
+        [`cer_${nanoid(10)}`, id, "character", starterReward.id]
+      );
+    }
   });
 
   res.status(201).json({ child: { id, name, age, age_group: ageGroup, language, avatar } });

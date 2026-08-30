@@ -52,6 +52,19 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
     ORDER BY activity_date DESC LIMIT 7
   `, [req.params.childId]);
 
+  const runnerRows = await db.all(`
+    SELECT l.level_number, l.name_en, s.best_score, s.best_stars, s.best_accuracy, s.runs_completed
+    FROM level_run_stats s
+    JOIN game_levels l ON l.id = s.level_id
+    WHERE s.child_id = ?
+    ORDER BY l.level_number ASC
+  `, [req.params.childId]);
+  const runTotals = await db.one(`
+    SELECT COUNT(*) AS total_runs, COALESCE(SUM(obstacles_dodged), 0) AS obstacles_dodged,
+      COALESCE(MAX(score), 0) AS best_score, COALESCE(MAX(stars_earned), 0) AS best_stars
+    FROM game_runs WHERE child_id = ?
+  `, [req.params.childId]);
+
   const normalizedStats = subjectStats.map((row) => ({
     subject: row.name_en,
     attempted: Number(row.attempted || 0),
@@ -78,6 +91,16 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
     })),
     weakTopics,
     last7Days: last7,
+    runner: {
+      totalRuns: Number(runTotals?.total_runs || 0),
+      obstaclesDodged: Number(runTotals?.obstacles_dodged || 0),
+      bestScore: Number(runTotals?.best_score || 0),
+      bestStars: Number(runTotals?.best_stars || 0),
+      levels: runnerRows.map((r) => ({
+        level_number: Number(r.level_number), name: r.name_en, best_score: Number(r.best_score || 0),
+        best_stars: Number(r.best_stars || 0), best_accuracy: Number(r.best_accuracy || 0), runs_completed: Number(r.runs_completed || 0),
+      })),
+    },
   });
 }));
 

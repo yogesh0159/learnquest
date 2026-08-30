@@ -2,229 +2,108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Jungle Adventure — LearnQuest</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#071a13">
+<title>Jungle Runner 3D — LearnQuest</title>
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
-<link rel="stylesheet" href="css/components.css">
-<style>
-  body { overflow: hidden; }
-  #gameWrap { position: relative; width: 100%; height: 100vh; background: #cdeecb; }
-  #gameHud {
-    position: absolute; top: 12px; left: 0; right: 0; z-index: 10;
-    display: flex; justify-content: space-between; align-items: center; padding: 0 16px;
-    pointer-events: none;
-  }
-  #gameHud > * { pointer-events: auto; }
-  #coinHud {
-    background: var(--white); padding: 8px 16px; border-radius: var(--radius-pill);
-    font-family: var(--font-display); font-weight: 700; box-shadow: var(--shadow-pop);
-  }
-  #controls {
-    position: absolute; bottom: 20px; left: 0; right: 0; display: flex; justify-content: center; gap: 16px; z-index: 10;
-  }
-  .ctrl-btn {
-    width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.85);
-    border: none; font-size: 1.6rem; box-shadow: var(--shadow-pop); cursor: pointer;
-  }
-  #phaserHost { width: 100%; height: 100%; }
-  #backLink {
-    background: var(--white); padding: 8px 14px; border-radius: var(--radius-pill);
-    font-family: var(--font-display); font-weight: 700; box-shadow: var(--shadow-pop); color: var(--canopy-dark);
-  }
-</style>
+<link rel="stylesheet" href="css/jungle-runner.css">
 </head>
 <body>
-  <div id="gameWrap">
-    <div id="gameHud">
-      <a id="backLink" href="world-jungle.html">← <span data-i18n="common_back">Back</span></a>
-      <div id="coinHud">🪙 <span id="coinCount">0</span></div>
+<div id="runnerApp">
+  <div id="threeHost" aria-label="3D Jungle Runner game"></div>
+
+  <div class="runner-topbar">
+    <a class="runner-back" href="world-jungle.html" aria-label="Back to Jungle World">← Back</a>
+    <div class="runner-center-hud">
+      <div class="runner-level-line">
+        <div class="runner-pill"><span id="levelBadge">🌿 Level</span></div>
+        <div class="runner-pill">🏆 <strong id="scoreHud">0</strong></div>
+        <div class="runner-pill">🪙 <strong id="coinHud">0</strong></div>
+        <div class="runner-pill">🔑 <strong id="keyHud">0</strong></div>
+        <div class="runner-pill hide-mobile">⚡ <strong id="speedHud">1.0x</strong></div>
+      </div>
+      <div class="runner-progress-wrap" aria-label="Level progress"><div id="progressBar"></div></div>
     </div>
-    <div id="phaserHost"></div>
-    <div id="controls">
-      <button class="ctrl-btn" id="leftBtn">⬅️</button>
-      <button class="ctrl-btn" id="rightBtn">➡️</button>
+    <div style="display:flex;gap:7px;">
+      <button id="soundBtn" class="runner-icon-btn" type="button" aria-label="Toggle sound">🔊</button>
+      <button id="pauseBtn" class="runner-icon-btn" type="button" aria-label="Pause game">⏸</button>
     </div>
   </div>
 
+  <section id="missionCard" aria-live="polite">
+    <div class="eyebrow">CURRENT MISSION</div>
+    <div id="missionText">Loading jungle mission…</div>
+    <div id="missionStats">🔑 0/0 · 🪙 0/0</div>
+  </section>
+
+  <section id="questionPanel" aria-live="assertive">
+    <div id="questionTopic">KNOWLEDGE GATE</div>
+    <div id="questionText">Choose the correct lane</div>
+    <div id="questionOptions" class="question-options"></div>
+    <div id="answerHint">Move LEFT / CENTER / RIGHT before the gate reaches you.</div>
+  </section>
+
+  <div id="comboToast">🔥 Combo x2</div>
+
+  <div id="feedbackFlash" role="status" aria-live="assertive">
+    <div class="big" id="feedbackIcon">✅</div>
+    <strong id="feedbackTitle">Correct!</strong>
+    <p id="feedbackText"></p>
+  </div>
+
+  <div id="controls" aria-label="Game controls">
+    <div class="ctrl-stack">
+      <button id="leftBtn" class="runner-ctrl" type="button" aria-label="Move left">⬅<small>LEFT</small></button>
+      <button id="jumpBtn" class="runner-ctrl primary" type="button" aria-label="Jump">⬆<small>JUMP</small></button>
+      <button id="slideBtn" class="runner-ctrl primary" type="button" aria-label="Slide">⬇<small>SLIDE</small></button>
+      <button id="rightBtn" class="runner-ctrl" type="button" aria-label="Move right">➡<small>RIGHT</small></button>
+    </div>
+  </div>
+
+  <div id="loadingBadge">🌿 Building your 3D jungle…</div>
+
+  <div id="startOverlay" class="runner-overlay">
+    <div class="runner-modal">
+      <div style="font-size:42px;">🌴🏃‍♂️💨</div>
+      <h1 id="introTitle">LearnQuest Jungle Runner</h1>
+      <p class="sub" id="introSubtitle">A fast 3-lane jungle adventure where every move matters.</p>
+      <div class="runner-modal-grid">
+        <div class="how-card"><div class="icon">⬅️➡️</div><b>Change lane</b><span>Arrow / A D / swipe</span></div>
+        <div class="how-card"><div class="icon">⬆️</div><b>Jump</b><span>Up / W / Space</span></div>
+        <div class="how-card"><div class="icon">⬇️</div><b>Slide</b><span>Down / S</span></div>
+        <div class="how-card"><div class="icon">🧠</div><b>Learn & survive</b><span>Choose answer lanes</span></div>
+      </div>
+      <div class="card-flat" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.1);color:#fff;">
+        <b id="introMission">Mission:</b>
+        <div style="margin-top:4px;font-family:Mukta,sans-serif;opacity:.88;">Avoid logs, branches, rocks and pits. A wrong movement causes a crash unless your shield saves you. Collect keys and answer learning gates to unlock the next level.</div>
+      </div>
+      <div class="runner-action-row">
+        <button id="startBtn" class="runner-big-btn" type="button" disabled>Preparing…</button>
+        <a class="runner-big-btn secondary" href="world-jungle.html" style="display:inline-flex;align-items:center;text-decoration:none;">Back to Map</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="pauseOverlay" class="runner-overlay hidden">
+    <div class="runner-modal" style="max-width:460px;text-align:center;">
+      <div style="font-size:44px;">⏸️</div>
+      <h2>Run Paused</h2>
+      <p class="sub">Your jungle is waiting.</p>
+      <div class="runner-action-row" style="justify-content:center;">
+        <button id="resumeBtn" class="runner-big-btn" type="button">Resume Run</button>
+        <a class="runner-big-btn secondary" href="world-jungle.html" style="display:inline-flex;align-items:center;text-decoration:none;">Exit</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="resultOverlay" class="runner-overlay hidden">
+    <div class="runner-modal" id="resultModal"></div>
+  </div>
+</div>
+
 <script src="js/i18n.js"></script>
 <script src="js/api.js"></script>
-<script src="js/gate.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/phaser/3.70.0/phaser.min.js"></script>
-<script>
-  requireChildAuth();
-
-  const params = new URLSearchParams(window.location.search);
-  const levelId = params.get("level");
-  let levelData = null;
-  let gateOpened = false;
-  let coinsCollected = 0;
-
-  const WORLD_WIDTH = 2400;
-  const GROUND_Y = 480;
-
-  class JungleScene extends Phaser.Scene {
-    constructor() { super("JungleScene"); }
-
-    preload() {
-      // All visuals are drawn procedurally so the game needs no image assets.
-      const g = this.make.graphics({ x: 0, y: 0, add: false });
-
-      // Player texture (rounded body + simple face)
-      g.clear();
-      g.fillStyle(0xffcc33, 1); g.fillRoundedRect(0, 0, 44, 54, 14);
-      g.fillStyle(0x1a2b22, 1); g.fillCircle(14, 20, 4); g.fillCircle(30, 20, 4);
-      g.generateTexture("player", 44, 54);
-
-      // Coin texture
-      g.clear();
-      g.fillStyle(0xf2a93b, 1); g.fillCircle(16, 16, 16);
-      g.fillStyle(0xffe08a, 1); g.fillCircle(16, 16, 10);
-      g.generateTexture("coin", 32, 32);
-
-      // Gate texture (locked)
-      g.clear();
-      g.fillStyle(0x6b4226, 1); g.fillRoundedRect(0, 0, 90, 160, 10);
-      g.fillStyle(0xf2a93b, 1); g.fillCircle(45, 80, 18);
-      g.fillStyle(0x1a2b22, 1); g.fillRect(41, 78, 8, 22);
-      g.generateTexture("gate_locked", 90, 160);
-
-      // Gate texture (open)
-      g.clear();
-      g.fillStyle(0x2d6a4f, 1); g.fillRoundedRect(0, 0, 90, 160, 10);
-      g.fillStyle(0xb7e4c7, 1); g.fillRoundedRect(10, 10, 70, 140, 8);
-      g.generateTexture("gate_open", 90, 160);
-
-      // Tree texture
-      g.clear();
-      g.fillStyle(0x6b4226, 1); g.fillRect(18, 60, 14, 60);
-      g.fillStyle(0x2d6a4f, 1); g.fillCircle(25, 40, 42);
-      g.fillStyle(0x52b788, 1); g.fillCircle(25, 25, 30);
-      g.generateTexture("tree", 60, 120);
-
-      // Ground tile
-      g.clear();
-      g.fillStyle(0x9c6b3e, 1); g.fillRect(0, 0, 64, 40);
-      g.fillStyle(0x52b788, 1); g.fillRect(0, 0, 64, 10);
-      g.generateTexture("ground", 64, 40);
-    }
-
-    create() {
-      this.physics.world.setBounds(0, 0, WORLD_WIDTH, 600);
-      this.cameras.main.setBounds(0, 0, WORLD_WIDTH, 600);
-
-      // sky gradient via rectangles (cheap parallax)
-      this.add.rectangle(WORLD_WIDTH / 2, 300, WORLD_WIDTH, 600, 0xcdeecb).setScrollFactor(0.2);
-
-      // background trees (parallax)
-      for (let x = 40; x < WORLD_WIDTH; x += 140) {
-        this.add.image(x, GROUND_Y - 20, "tree").setScrollFactor(0.6).setScale(1 + Math.random() * 0.4);
-      }
-
-      // ground
-      this.groundGroup = this.physics.add.staticGroup();
-      for (let x = 0; x < WORLD_WIDTH; x += 64) {
-        const tile = this.groundGroup.create(x + 32, GROUND_Y + 40, "ground");
-        tile.refreshBody();
-      }
-
-      // player
-      this.player = this.physics.add.sprite(80, GROUND_Y - 10, "player");
-      this.player.setCollideWorldBounds(true);
-      this.physics.add.collider(this.player, this.groundGroup);
-      this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
-
-      // coins
-      this.coins = this.physics.add.group();
-      for (let i = 0; i < 10; i++) {
-        const cx = 250 + i * 200 + Math.random() * 60;
-        const coin = this.coins.create(cx, GROUND_Y - 60, "coin");
-        coin.body.allowGravity = false;
-        this.tweens.add({ targets: coin, y: coin.y - 12, yoyo: true, repeat: -1, duration: 700 + Math.random() * 300 });
-      }
-      this.physics.add.overlap(this.player, this.coins, (player, coin) => {
-        coin.destroy();
-        coinsCollected += 1;
-        document.getElementById("coinCount").textContent = coinsCollected;
-      });
-
-      // gate near the end
-      this.gate = this.physics.add.staticImage(WORLD_WIDTH - 140, GROUND_Y - 40, "gate_locked");
-      this.physics.add.collider(this.player, this.gate, () => this.hitGate());
-
-      this.cursors = this.input.keyboard.createCursorKeys();
-
-      this.leftHeld = false;
-      this.rightHeld = false;
-      document.getElementById("leftBtn").addEventListener("pointerdown", () => (this.leftHeld = true));
-      document.getElementById("leftBtn").addEventListener("pointerup", () => (this.leftHeld = false));
-      document.getElementById("leftBtn").addEventListener("pointerleave", () => (this.leftHeld = false));
-      document.getElementById("rightBtn").addEventListener("pointerdown", () => (this.rightHeld = true));
-      document.getElementById("rightBtn").addEventListener("pointerup", () => (this.rightHeld = false));
-      document.getElementById("rightBtn").addEventListener("pointerleave", () => (this.rightHeld = false));
-    }
-
-    hitGate() {
-      if (gateOpened || this.gateTriggered) return;
-      this.gateTriggered = true;
-      this.player.setVelocityX(0);
-      levelData.run_coins = coinsCollected;
-      openGateModal(levelData, (result) => {
-        this.gateTriggered = false;
-        if (result.passed) {
-          gateOpened = true;
-          this.gate.setTexture("gate_open");
-          this.showLevelComplete();
-        }
-      });
-    }
-
-    showLevelComplete() {
-      const overlay = document.createElement("div");
-      overlay.className = "modal-backdrop";
-      overlay.innerHTML = `
-        <div class="modal center">
-          <div style="font-size:2.4rem;">🌿🎉</div>
-          <h2>${t("gate_passed_title")}</h2>
-          <button class="btn btn-primary" id="backToMapBtn">${t("gate_back_to_map")}</button>
-        </div>`;
-      document.body.appendChild(overlay);
-      overlay.querySelector("#backToMapBtn").onclick = () => (window.location.href = "world-jungle.html");
-    }
-
-    update() {
-      const speed = 220;
-      let vx = 0;
-      if (this.cursors.left.isDown || this.leftHeld) vx = -speed;
-      else if (this.cursors.right.isDown || this.rightHeld) vx = speed;
-      this.player.setVelocityX(vx);
-      if (vx !== 0) this.player.flipX = vx < 0;
-    }
-  }
-
-  async function init() {
-    try {
-      if (!levelId) { window.location.href = "world-jungle.html"; return; }
-      const me = await api.childMe();
-      levelData = me.jungleLevels.find((l) => l.id === levelId);
-      if (!levelData || levelData.status === "locked") { window.location.href = "world-jungle.html"; return; }
-
-      new Phaser.Game({
-        type: Phaser.AUTO,
-        parent: "phaserHost",
-        width: window.innerWidth,
-        height: window.innerHeight,
-        backgroundColor: "#cdeecb",
-        physics: { default: "arcade", arcade: { gravity: { y: 900 }, debug: false } },
-        scene: JungleScene,
-        scale: { mode: Phaser.Scale.RESIZE, autoCenter: Phaser.Scale.CENTER_BOTH },
-      });
-    } catch (err) {
-      document.getElementById("phaserHost").innerHTML = `<div class="center" style="padding:100px 20px;"><h2>Game could not start</h2><p>${err.message}</p><a class="btn btn-primary" href="world-jungle.html">Back to map</a></div>`;
-    }
-  }
-
-  document.addEventListener("lq:i18n-ready", init, { once: true });
-</script>
+<script type="module" src="js/jungle-runner.js"></script>
 </body>
 </html>

@@ -20,6 +20,8 @@ const frontendDir = path.join(__dirname, "..", "frontend");
 app.disable("x-powered-by");
 app.use(cors());
 app.use(express.json({ limit: "256kb" }));
+// Serve the installed Three.js module locally so the 3D runner does not depend on a public CDN.
+app.use("/vendor/three", express.static(path.join(__dirname, "node_modules", "three", "build"), { maxAge: "7d" }));
 app.use(express.static(frontendDir));
 
 app.use("/api/auth", authRoutes);

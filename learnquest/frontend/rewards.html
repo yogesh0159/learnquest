@@ -7,6 +7,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/components.css">
+<style>
+  .shop-hero { display:flex; justify-content:space-between; gap:18px; align-items:center; padding:22px; border-radius:24px; background:linear-gradient(135deg,#e8f7e8,#fff5d8); border:1px solid rgba(27,76,55,.12); }
+  .shop-hero h2 { margin:0 0 6px; }
+  .shop-note { max-width:580px; }
+  .reward-card { position:relative; overflow:hidden; }
+  .reward-card.equipped { outline:3px solid #2d6a4f; }
+  .equip-tag { position:absolute; right:10px; top:10px; background:#164e3b; color:#fff; border-radius:999px; padding:4px 9px; font-size:.72rem; font-weight:800; }
+  .reward-actions { display:grid; gap:8px; margin-top:10px; }
+  .reward-type { text-transform:capitalize; font-size:.8rem; color:var(--muted); }
+</style>
 </head>
 <body>
   <div class="screen">
@@ -16,9 +26,14 @@
     </header>
 
     <main class="container mt-24" style="flex:1; padding-bottom: 60px;">
-      <h2 data-i18n="rewards_title">Reward Shop</h2>
-      <p class="muted" data-i18n="rewards_subtitle">Spend your coins on jungle gear!</p>
-      <div class="reward-grid" id="rewardGrid"></div>
+      <section class="shop-hero">
+        <div class="shop-note">
+          <h2 data-i18n="rewards_title">Reward Shop</h2>
+          <p class="muted" style="margin:0;">Unlock gear, then equip it. Equipped character, outfit, pet and power items appear inside Jungle Runner.</p>
+        </div>
+        <div style="font-size:3rem;">🎒✨</div>
+      </section>
+      <div class="reward-grid mt-24" id="rewardGrid"></div>
     </main>
   </div>
 
@@ -34,24 +49,31 @@
     grid.innerHTML = "";
     state.rewards.forEach((r) => {
       const card = document.createElement("div");
-      card.className = "card-flat reward-card";
+      card.className = `card-flat reward-card ${r.equipped ? "equipped" : ""}`;
       card.innerHTML = `
+        ${r.equipped ? '<div class="equip-tag">EQUIPPED</div>' : ''}
         <div class="emoji">${r.emoji}</div>
         <div style="font-weight:700;">${r.name}</div>
-        <div class="cost">${r.cost_coins > 0 ? "🪙 " + r.cost_coins : "—"}</div>
-        <button class="btn btn-sm ${r.owned ? "btn-ghost" : "btn-primary"} btn-block" ${r.owned ? "disabled" : ""} data-id="${r.id}" data-cost="${r.cost_coins}">
-          ${r.owned ? t("rewards_owned") : t("rewards_unlock")}
-        </button>
+        <div class="reward-type">${r.slot}</div>
+        <div class="cost">${r.cost_coins > 0 ? "🪙 " + r.cost_coins : "Starter"}</div>
+        <div class="reward-actions">
+          ${!r.owned ? `<button class="btn btn-primary btn-sm btn-block unlock-btn" data-id="${r.id}">${t("rewards_unlock")}</button>` : ""}
+          ${r.owned && !r.equipped ? `<button class="btn btn-ghost btn-sm btn-block equip-btn" data-id="${r.id}">Equip in Runner</button>` : ""}
+          ${r.owned && r.equipped ? `<button class="btn btn-ghost btn-sm btn-block" disabled>Ready for Jungle Runner ✓</button>` : ""}
+        </div>
       `;
-      const btn = card.querySelector("button");
-      if (!r.owned) {
-        btn.onclick = async () => {
-          try {
-            await api.rewardUnlock(r.id);
-            await load();
-          } catch (e) {
-            showToast(t("rewards_not_enough"));
-          }
+      const unlockBtn = card.querySelector(".unlock-btn");
+      if (unlockBtn) {
+        unlockBtn.onclick = async () => {
+          try { await api.rewardUnlock(r.id); await load(); }
+          catch (e) { showToast(e.message || t("rewards_not_enough")); }
+        };
+      }
+      const equipBtn = card.querySelector(".equip-btn");
+      if (equipBtn) {
+        equipBtn.onclick = async () => {
+          try { await api.rewardEquip(r.id); showToast("Equipped! It will appear in Jungle Runner."); await load(); }
+          catch (e) { showToast(e.message); }
         };
       }
       grid.appendChild(card);
@@ -59,11 +81,12 @@
   }
 
   async function load() {
-    state = await api.rewards();
-    render();
+    try { state = await api.rewards(); render(); }
+    catch (e) { document.getElementById("rewardGrid").innerHTML = `<div class="card"><h3>Could not load rewards</h3><p>${e.message}</p></div>`; }
   }
 
   document.addEventListener("lq:i18n-ready", () => { if (state) render(); else load(); });
+  load();
 </script>
 </body>
 </html>

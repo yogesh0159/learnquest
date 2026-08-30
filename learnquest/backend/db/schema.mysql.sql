@@ -155,3 +155,67 @@ CREATE TABLE IF NOT EXISTS daily_activity (
   UNIQUE KEY uq_child_activity_date (child_id, activity_date),
   INDEX idx_daily_activity_child_date (child_id, activity_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Three.js Jungle Runner telemetry, stars and loadout
+CREATE TABLE IF NOT EXISTS game_runs (
+  id VARCHAR(64) PRIMARY KEY,
+  child_id VARCHAR(64) NOT NULL,
+  level_id VARCHAR(64) NOT NULL,
+  status VARCHAR(32) NOT NULL DEFAULT 'active',
+  distance_run INT NOT NULL DEFAULT 0,
+  score INT NOT NULL DEFAULT 0,
+  run_coins INT NOT NULL DEFAULT 0,
+  keys_collected INT NOT NULL DEFAULT 0,
+  obstacles_dodged INT NOT NULL DEFAULT 0,
+  max_combo INT NOT NULL DEFAULT 0,
+  stars_earned INT NOT NULL DEFAULT 0,
+  started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at DATETIME NULL,
+  CONSTRAINT fk_game_runs_child FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE,
+  CONSTRAINT fk_game_runs_level FOREIGN KEY (level_id) REFERENCES game_levels(id) ON DELETE CASCADE,
+  INDEX idx_game_runs_child_level (child_id, level_id),
+  INDEX idx_game_runs_status (status)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS game_run_answers (
+  id VARCHAR(64) PRIMARY KEY,
+  run_id VARCHAR(64) NOT NULL,
+  question_id VARCHAR(64) NOT NULL,
+  selected_index INT NOT NULL,
+  correct TINYINT(1) NOT NULL,
+  answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_run_answers_run FOREIGN KEY (run_id) REFERENCES game_runs(id) ON DELETE CASCADE,
+  CONSTRAINT fk_run_answers_question FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_run_question (run_id, question_id),
+  INDEX idx_run_answers_run (run_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS level_run_stats (
+  id VARCHAR(64) PRIMARY KEY,
+  child_id VARCHAR(64) NOT NULL,
+  level_id VARCHAR(64) NOT NULL,
+  best_score INT NOT NULL DEFAULT 0,
+  best_stars INT NOT NULL DEFAULT 0,
+  best_distance INT NOT NULL DEFAULT 0,
+  best_coins INT NOT NULL DEFAULT 0,
+  best_combo INT NOT NULL DEFAULT 0,
+  best_accuracy INT NOT NULL DEFAULT 0,
+  runs_completed INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  CONSTRAINT fk_level_stats_child FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE,
+  CONSTRAINT fk_level_stats_level FOREIGN KEY (level_id) REFERENCES game_levels(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_level_stats_child_level (child_id, level_id),
+  INDEX idx_level_stats_child (child_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS child_equipped_rewards (
+  id VARCHAR(64) PRIMARY KEY,
+  child_id VARCHAR(64) NOT NULL,
+  slot VARCHAR(32) NOT NULL,
+  reward_id VARCHAR(64) NOT NULL,
+  equipped_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_equipped_child FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE,
+  CONSTRAINT fk_equipped_reward FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_equipped_child_slot (child_id, slot),
+  INDEX idx_equipped_child (child_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

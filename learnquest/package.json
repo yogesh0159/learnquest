@@ -10,6 +10,6 @@
     "postinstall": "npm --prefix backend install --omit=dev",
     "start": "npm --prefix backend start",
     "seed": "npm --prefix backend run seed",
-    "check": "npm --prefix backend run check"
+    "check": "npm --prefix backend run check && node scripts/validate-project.js"
   }
 }

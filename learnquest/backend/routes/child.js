@@ -12,15 +12,34 @@ router.get("/me", requireAuth("child"), asyncRoute(async (req, res) => {
   const worlds = await db.all("SELECT * FROM worlds ORDER BY sort_order");
   const levels = await db.all("SELECT * FROM game_levels WHERE world_id = ? ORDER BY level_number", ["jungle"]);
   const progress = await db.all("SELECT * FROM child_level_progress WHERE child_id = ?", [child.id]);
-  const progressByLevel = Object.fromEntries(progress.map((p) => [p.level_id, p.status]));
+  const runStats = await db.all("SELECT * FROM level_run_stats WHERE child_id = ?", [child.id]);
+  const equipped = await db.all(`
+    SELECT e.slot, e.reward_id, r.type, r.emoji, r.name_en
+    FROM child_equipped_rewards e
+    JOIN rewards r ON r.id = e.reward_id
+    WHERE e.child_id = ?
+  `, [child.id]);
 
-  const levelsWithStatus = levels.map((level) => ({
-    ...level,
-    is_boss: Number(level.is_boss || 0),
-    questions_required: Number(level.questions_required || 0),
-    boss_hp: level.boss_hp == null ? null : Number(level.boss_hp),
-    status: progressByLevel[level.id] || "locked",
-  }));
+  const progressByLevel = Object.fromEntries(progress.map((p) => [p.level_id, p.status]));
+  const statsByLevel = Object.fromEntries(runStats.map((s) => [s.level_id, s]));
+
+  const levelsWithStatus = levels.map((level) => {
+    const stats = statsByLevel[level.id];
+    return {
+      ...level,
+      is_boss: Number(level.is_boss || 0),
+      questions_required: Number(level.questions_required || 0),
+      boss_hp: level.boss_hp == null ? null : Number(level.boss_hp),
+      status: progressByLevel[level.id] || "locked",
+      best_score: Number(stats?.best_score || 0),
+      best_stars: Number(stats?.best_stars || 0),
+      best_distance: Number(stats?.best_distance || 0),
+      best_coins: Number(stats?.best_coins || 0),
+      best_combo: Number(stats?.best_combo || 0),
+      best_accuracy: Number(stats?.best_accuracy || 0),
+      runs_completed: Number(stats?.runs_completed || 0),
+    };
+  });
 
   res.json({
     child: {
@@ -37,6 +56,13 @@ router.get("/me", requireAuth("child"), asyncRoute(async (req, res) => {
     },
     worlds: worlds.map((w) => ({ ...w, is_active: Number(w.is_active || 0), sort_order: Number(w.sort_order || 0) })),
     jungleLevels: levelsWithStatus,
+    equippedRewards: equipped.map((r) => ({
+      slot: r.slot,
+      reward_id: r.reward_id,
+      type: r.type,
+      emoji: r.emoji,
+      name: r.name_en,
+    })),
   });
 }));
 

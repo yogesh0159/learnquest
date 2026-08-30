@@ -29,11 +29,17 @@ const api = {
   childUpdate: (payload) => apiRequest("/child/me", { method: "PUT", body: payload }),
 
   questions: (subject, count = 3) => apiRequest(`/questions?subject=${encodeURIComponent(subject)}&count=${count}`),
+  runnerQuestions: (subject, count = 3) => apiRequest(`/questions?subject=${encodeURIComponent(subject)}&count=${count}&runner=1`),
 
   gateAttempt: (payload) => apiRequest("/game/gate/attempt", { method: "POST", body: payload }),
+  runnerStart: (payload) => apiRequest("/game/runner/start", { method: "POST", body: payload }),
+  runnerAnswer: (payload) => apiRequest("/game/runner/answer", { method: "POST", body: payload }),
+  runnerCrash: (payload) => apiRequest("/game/runner/crash", { method: "POST", body: payload }),
+  runnerComplete: (payload) => apiRequest("/game/runner/complete", { method: "POST", body: payload }),
 
   rewards: () => apiRequest("/rewards"),
   rewardUnlock: (id) => apiRequest(`/rewards/${id}/unlock`, { method: "POST" }),
+  rewardEquip: (id) => apiRequest(`/rewards/${id}/equip`, { method: "POST" }),
 
   parentDashboard: (childId) => apiRequest(`/parent/dashboard/${childId}`),
   parentAssignTask: (payload) => apiRequest("/parent/tasks", { method: "POST", body: payload }),

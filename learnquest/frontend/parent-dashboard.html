@@ -35,6 +35,12 @@
         <div class="stat-grid" id="statGrid"></div>
 
         <div class="card mt-24">
+          <h3>🎮 Jungle Runner Progress</h3>
+          <div id="runnerSummary" class="stat-grid"></div>
+          <div id="runnerLevels" class="mt-16"></div>
+        </div>
+
+        <div class="card mt-24">
           <h3 data-i18n="parent_subject_progress">Subject Progress</h3>
           <div id="subjectBars"></div>
         </div>
@@ -127,6 +133,16 @@
       <div class="card-flat center"><div style="font-size:1.6rem;">🔥 ${d.child.streak_count}</div><div class="muted">${t("parent_streak")}</div></div>
       <div class="card-flat center"><div style="font-size:1.6rem;">${d.overallAccuracy !== null ? d.overallAccuracy + "%" : "—"}</div><div class="muted">${t("parent_overall_accuracy")}</div></div>
     `;
+
+    const runner = d.runner || { totalRuns: 0, obstaclesDodged: 0, bestScore: 0, bestStars: 0, levels: [] };
+    document.getElementById("runnerSummary").innerHTML = `
+      <div class="card-flat center"><div style="font-size:1.45rem;">🏃 ${runner.totalRuns}</div><div class="muted">Runs</div></div>
+      <div class="card-flat center"><div style="font-size:1.45rem;">🪨 ${runner.obstaclesDodged}</div><div class="muted">Dodged</div></div>
+      <div class="card-flat center"><div style="font-size:1.45rem;">🏆 ${runner.bestScore}</div><div class="muted">Best Score</div></div>
+      <div class="card-flat center"><div style="font-size:1.45rem;">${"⭐".repeat(runner.bestStars || 0) || "—"}</div><div class="muted">Best Stars</div></div>`;
+    document.getElementById("runnerLevels").innerHTML = runner.levels.length
+      ? runner.levels.map(l => `<div class="task-row"><div><b>Level ${l.level_number}: ${l.name}</b><div class="muted" style="font-size:.82rem;">${"⭐".repeat(l.best_stars)}${"☆".repeat(3-l.best_stars)} · 🧠 ${l.best_accuracy}% · ${l.runs_completed} completed runs</div></div><div>🏆 ${l.best_score}</div></div>`).join("")
+      : `<p class="muted">No 3D runner activity yet.</p>`;
 
     const bars = document.getElementById("subjectBars");
     bars.innerHTML = "";

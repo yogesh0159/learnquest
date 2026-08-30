@@ -144,3 +144,60 @@ CREATE INDEX IF NOT EXISTS idx_progress_child ON child_level_progress(child_id);
 CREATE INDEX IF NOT EXISTS idx_question_log_child ON question_log(child_id);
 CREATE INDEX IF NOT EXISTS idx_daily_activity_child_date ON daily_activity(child_id, activity_date);
 CREATE INDEX IF NOT EXISTS idx_tasks_child ON parent_tasks(child_id);
+
+-- Three.js Jungle Runner telemetry, stars and loadout
+CREATE TABLE IF NOT EXISTS game_runs (
+  id TEXT PRIMARY KEY,
+  child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  level_id TEXT NOT NULL REFERENCES game_levels(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'active',
+  distance_run INTEGER NOT NULL DEFAULT 0,
+  score INTEGER NOT NULL DEFAULT 0,
+  run_coins INTEGER NOT NULL DEFAULT 0,
+  keys_collected INTEGER NOT NULL DEFAULT 0,
+  obstacles_dodged INTEGER NOT NULL DEFAULT 0,
+  max_combo INTEGER NOT NULL DEFAULT 0,
+  stars_earned INTEGER NOT NULL DEFAULT 0,
+  started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS game_run_answers (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL REFERENCES game_runs(id) ON DELETE CASCADE,
+  question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  selected_index INTEGER NOT NULL,
+  correct INTEGER NOT NULL,
+  answered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(run_id, question_id)
+);
+
+CREATE TABLE IF NOT EXISTS level_run_stats (
+  id TEXT PRIMARY KEY,
+  child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  level_id TEXT NOT NULL REFERENCES game_levels(id) ON DELETE CASCADE,
+  best_score INTEGER NOT NULL DEFAULT 0,
+  best_stars INTEGER NOT NULL DEFAULT 0,
+  best_distance INTEGER NOT NULL DEFAULT 0,
+  best_coins INTEGER NOT NULL DEFAULT 0,
+  best_combo INTEGER NOT NULL DEFAULT 0,
+  best_accuracy INTEGER NOT NULL DEFAULT 0,
+  runs_completed INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(child_id, level_id)
+);
+
+CREATE TABLE IF NOT EXISTS child_equipped_rewards (
+  id TEXT PRIMARY KEY,
+  child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  slot TEXT NOT NULL,
+  reward_id TEXT NOT NULL REFERENCES rewards(id) ON DELETE CASCADE,
+  equipped_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(child_id, slot)
+);
+
+CREATE INDEX IF NOT EXISTS idx_game_runs_child_level ON game_runs(child_id, level_id);
+CREATE INDEX IF NOT EXISTS idx_game_runs_status ON game_runs(status);
+CREATE INDEX IF NOT EXISTS idx_run_answers_run ON game_run_answers(run_id);
+CREATE INDEX IF NOT EXISTS idx_level_stats_child ON level_run_stats(child_id);
+CREATE INDEX IF NOT EXISTS idx_equipped_child ON child_equipped_rewards(child_id);
