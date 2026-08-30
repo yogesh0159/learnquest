@@ -119,6 +119,20 @@ Core tables:
 - `level_run_stats`
 - `child_equipped_rewards`
 
+## Security & operations (upgrade notes)
+
+- **Child PINs are bcrypt-hashed**, not stored in plaintext. Existing children are upgraded automatically on their next successful login; `npm run migrate` (from `/learnquest`) hashes everyone immediately if you'd rather not wait.
+- **Rate limiting** protects `/api/auth/*` (signup/login) and child PIN login specifically (keyed per child, not just per IP) against brute-force guessing. A general limiter also caps overall API traffic.
+- **Security headers** are set via `helmet` (CSP, `X-Frame-Options`, `X-Content-Type-Options`, etc.).
+- **CORS** defaults to same-origin (the frontend is served by this same Express app). Set `ALLOWED_ORIGINS` only if you host the frontend separately.
+- **`JWT_SECRET` is required** when `NODE_ENV=production` — the server refuses to start without it rather than silently using a shared default secret.
+- **Structured logging** via `pino`; set `LOG_LEVEL` (default `info` in production, `debug` locally). Auth tokens, password hashes, and PINs are automatically redacted from logs.
+- **Compression + caching**: gzip/brotli via `compression`, long-lived `Cache-Control` on static JS/CSS/vendor assets, `no-cache` on HTML so deploys are picked up immediately.
+- **Automated tests**: `npm test` (from `/learnquest` or `/learnquest/backend`) runs a Node.js built-in test-runner suite covering validation helpers, PIN hashing/auth, and game mission logic.
+- **CI**: `.github/workflows/ci.yml` (at the repo root, alongside this `learnquest` folder) runs `npm run check` and `npm test` on every push/PR.
+
+See `UPGRADES_APPLIED.md` for the full list of changes made in this security/performance upgrade pass.
+
 ## Important
 
 Do not commit a real `.env` file or Railway secrets to GitHub. `.env.example` is safe as a template.

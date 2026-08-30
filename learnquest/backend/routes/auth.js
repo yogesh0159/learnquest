@@ -2,8 +2,10 @@ const express = require("express");
 const bcrypt = require("bcryptjs");
 const { nanoid } = require("nanoid");
 const db = require("../db");
-const { signToken, requireAuth } = require("../utils/auth");
+const { signToken, requireAuth, hashPin, verifyPin } = require("../utils/auth");
 const asyncRoute = require("../utils/async-route");
+const { authLimiter, pinLoginLimiter } = require("../utils/rate-limit");
+const { isNonEmptyString, isValidEmail, isValidPassword, isValidPin, isOneOf, asString } = require("../utils/validate");
 
 const router = express.Router();
 
@@ -14,16 +16,13 @@ function ageGroupFor(age) {
   return null;
 }
 
-router.post("/parent/signup", asyncRoute(async (req, res) => {
-  const name = String(req.body?.name || "").trim();
-  const email = String(req.body?.email || "").trim().toLowerCase();
+router.post("/parent/signup", authLimiter, asyncRoute(async (req, res) => {
+  const name = asString(req.body?.name, { maxLength: 120 });
+  const email = asString(req.body?.email, { maxLength: 255 }).toLowerCase();
   const password = String(req.body?.password || "");
 
-  if (!name || !email || !password) {
-    return res.status(400).json({ error: "name, email, password are required" });
-  }
-  if (password.length < 6) {
-    return res.status(400).json({ error: "Password must be at least 6 characters" });
+  if (!isNonEmptyString(name, { maxLength: 120 }) || !isValidEmail(email) || !isValidPassword(password)) {
+    return res.status(400).json({ error: "Valid name, email, and a password of at least 6 characters are required" });
   }
 
   const existing = await db.one("SELECT id FROM parents WHERE email = ?", [email]);
@@ -40,12 +39,18 @@ router.post("/parent/signup", asyncRoute(async (req, res) => {
   res.status(201).json({ token, parent: { id, name, email } });
 }));
 
-router.post("/parent/login", asyncRoute(async (req, res) => {
-  const email = String(req.body?.email || "").trim().toLowerCase();
+router.post("/parent/login", authLimiter, asyncRoute(async (req, res) => {
+  const email = asString(req.body?.email, { maxLength: 255 }).toLowerCase();
   const password = String(req.body?.password || "");
-  const parent = await db.one("SELECT * FROM parents WHERE email = ?", [email]);
+  const parent = email ? await db.one("SELECT * FROM parents WHERE email = ?", [email]) : null;
 
-  if (!parent || !(await bcrypt.compare(password, parent.password_hash))) {
+  // Always run bcrypt.compare, even with no matching row, against a dummy
+  // hash — this keeps response timing consistent so an attacker can't use
+  // timing differences to enumerate which emails are registered.
+  const hashToCheck = parent?.password_hash || "$2a$10$CwTycUXWue0Thq9StjUM0uJ8vJ8j5G2wJvZ8YQ5Q5Z5Q5Q5Q5Q5Q5";
+  const passwordOk = await bcrypt.compare(password, hashToCheck);
+
+  if (!parent || !passwordOk) {
     return res.status(401).json({ error: "Invalid email or password" });
   }
 
@@ -54,24 +59,25 @@ router.post("/parent/login", asyncRoute(async (req, res) => {
 }));
 
 router.post("/child/create", requireAuth("parent"), asyncRoute(async (req, res) => {
-  const name = String(req.body?.name || "").trim();
+  const name = asString(req.body?.name, { maxLength: 120 });
   const age = Number(req.body?.age);
-  const language = ["en", "hi", "mr"].includes(req.body?.language) ? req.body.language : "en";
-  const avatar = String(req.body?.avatar || "🦊").slice(0, 32);
-  const pin = String(req.body?.pin || "").trim();
-  const className = String(req.body?.className || "").trim();
+  const language = isOneOf(req.body?.language, ["en", "hi", "mr"]) ? req.body.language : "en";
+  const avatar = asString(req.body?.avatar || "🦊", { maxLength: 32 });
+  const pin = asString(req.body?.pin, { maxLength: 8 });
+  const className = asString(req.body?.className, { maxLength: 80 });
   const ageGroup = ageGroupFor(age);
 
-  if (!name || !ageGroup || !/^\d{4}$/.test(pin)) {
+  if (!isNonEmptyString(name, { maxLength: 120 }) || !ageGroup || !isValidPin(pin)) {
     return res.status(400).json({ error: "Valid name, age (4-12), and a 4-digit PIN are required" });
   }
 
   const id = `child_${nanoid(10)}`;
+  const pinHash = await hashPin(pin);
   await db.transaction(async (tx) => {
     await tx.run(`
       INSERT INTO children (id, parent_id, name, age, age_group, class, language, avatar, pin)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [id, req.user.id, name, age, ageGroup, className || null, language, avatar, pin]);
+    `, [id, req.user.id, name, age, ageGroup, className || null, language, avatar, pinHash]);
 
     const level1 = await tx.one("SELECT id FROM game_levels WHERE world_id = ? AND level_number = 1", ["jungle"]);
     if (level1) {
@@ -105,13 +111,25 @@ router.get("/child/list", requireAuth("parent"), asyncRoute(async (req, res) => 
   res.json({ children });
 }));
 
-router.post("/child/login", asyncRoute(async (req, res) => {
-  const childId = String(req.body?.childId || "").trim();
-  const pin = String(req.body?.pin || "").trim();
-  const child = await db.one("SELECT * FROM children WHERE id = ?", [childId]);
+router.post("/child/login", pinLoginLimiter, asyncRoute(async (req, res) => {
+  const childId = asString(req.body?.childId, { maxLength: 64 });
+  const pin = asString(req.body?.pin, { maxLength: 8 });
+  const child = childId ? await db.one("SELECT * FROM children WHERE id = ?", [childId]) : null;
 
-  if (!child || String(child.pin) !== pin) {
+  // Compare against a dummy bcrypt hash when the child doesn't exist, so
+  // response timing doesn't leak whether a given childId is valid.
+  const DUMMY_PIN_HASH = "$2a$08$CwTycUXWue0Thq9StjUM0uJ8vJ8j5G2wJvZ8YQ5Q5Z5Q5Q5Q5Q5Q5";
+  const pinOk = await verifyPin(pin, child ? child.pin : DUMMY_PIN_HASH);
+
+  if (!child || !pinOk) {
     return res.status(401).json({ error: "Invalid child ID or PIN" });
+  }
+
+  // Transparently upgrade a legacy plaintext PIN to a bcrypt hash the first
+  // time this child logs in successfully after the security upgrade.
+  if (!child.pin.startsWith("$2")) {
+    const upgradedHash = await hashPin(pin);
+    await db.run("UPDATE children SET pin = ? WHERE id = ?", [upgradedHash, child.id]);
   }
 
   const token = signToken({ id: child.id, role: "child", name: child.name, parentId: child.parent_id });

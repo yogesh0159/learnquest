@@ -527,3 +527,8 @@ router.post("/gate/attempt", requireAuth("child"), asyncRoute(async (req, res) =
 }));
 
 module.exports = router;
+// Exposed for unit testing (see test/game-helpers.test.js) — these are pure
+// functions with no DB/request dependency, so attaching them to the router
+// export lets them be tested in isolation without spinning up Express.
+module.exports.clampNumber = clampNumber;
+module.exports.missionForLevel = missionForLevel;

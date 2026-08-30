@@ -48,3 +48,21 @@ Expected result when the existing Railway MySQL variable is connected:
 ```
 
 Then test Child login → Jungle World → Level 1 → runner start. No manual SQL import or seed command is required; startup creates/upgrades tables and upserts bundled content automatically.
+
+## Security/performance upgrade pass — re-validation
+
+- `npm run check` passed with **277 checks** (was 270; +7 from new
+  `utils/logger.js`, `utils/validate.js`, `utils/rate-limit.js`, `db/migrate.js`,
+  and the `backend/test/` suite being syntax-checked too).
+- `npm test` (Node.js built-in test runner) passed: **16/16 tests** covering
+  validation helpers, PIN hashing/verification (new + legacy-plaintext
+  compatibility), JWT auth middleware, and game mission/clamping helpers.
+- Full live server smoke test performed (SQLite mode):
+  - `/api/health` → `{"ok":true,"database":"sqlite","dbLatencyMs":0}`
+  - Security headers confirmed present: `Content-Security-Policy`,
+    `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`
+  - Parent signup → child create → child login round-trip confirmed working
+  - Child PIN confirmed stored as a bcrypt hash (`$2a$08$...`) in the
+    database, not plaintext
+  - Wrong PIN correctly rejected with `401`
+- See `UPGRADES_APPLIED.md` for the full list of changes in this pass.
