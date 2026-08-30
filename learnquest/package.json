@@ -1,1 +1,11 @@
-{"name": "learnquest-root", "private": true}
+{
+  "name": "learnquest-root",
+  "private": true,
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "postinstall": "npm --prefix backend install",
+    "start": "npm --prefix backend start"
+  }
+}
