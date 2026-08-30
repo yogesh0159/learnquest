@@ -111,6 +111,21 @@ try {
   assert(runner.includes('crash("wrong-answer")'), 'Wrong learning lane can end the run');
   assert(!runner.toLowerCase().includes('phaser'), 'Legacy Phaser engine is not used by the 3D runner');
 
+
+
+  // Production hotfix regression checks.
+  const dbIndex = read('backend/db/index.js');
+  assert(dbIndex.includes('ALTER TABLE children MODIFY COLUMN pin VARCHAR(255) NOT NULL'), 'Existing MySQL children.pin is widened automatically');
+  const authRoute = read('backend/routes/auth.js');
+  assert(authRoute.includes('STALE_PARENT_SESSION'), 'Stale parent sessions are rejected before child insert');
+  const apiClient = read('frontend/js/api.js');
+  assert(apiClient.includes('res.status === 401 && auth') && apiClient.includes('clearSession()'), 'Authenticated 401 responses clear stale browser sessions');
+  const serverSource = read('backend/server.js');
+  assert(serverSource.includes('https://fonts.googleapis.com') && serverSource.includes('https://fonts.gstatic.com'), 'CSP allows configured Google Fonts');
+  assert(serverSource.includes('https://cdn.jsdelivr.net') && serverSource.includes('https://unpkg.com'), 'CSP allows Three.js CDN fallbacks');
+  const profileSetup = read('frontend/profile-setup.html');
+  assert(profileSetup.includes('id="createProfileBtn"') && profileSetup.includes('submitBtn.disabled = true'), 'Child profile form prevents duplicate submissions');
+
   console.log(`✅ LearnQuest validation passed (${ok.length} checks).`);
 } catch (error) {
   console.error('❌ LearnQuest validation failed:', error.message);

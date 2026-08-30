@@ -70,8 +70,17 @@ async function init() {
 
     const schema = fs.readFileSync(path.join(__dirname, "schema.mysql.sql"), "utf8");
     await mysqlPool.query(schema);
+
+    // CREATE TABLE IF NOT EXISTS does not alter columns on an existing Railway
+    // database. Older LearnQuest releases used VARCHAR(16) for children.pin,
+    // while current releases store bcrypt hashes (~60 chars). Widen it
+    // automatically on every startup (idempotent) so new child creation and
+    // legacy PIN upgrades never fail with "Data too long for column 'pin'".
+    await mysqlPool.query("ALTER TABLE children MODIFY COLUMN pin VARCHAR(255) NOT NULL");
+
     dialect = "mysql";
     console.log("🗄️ LearnQuest database: MySQL");
+    console.log("✅ Database schema compatibility upgrades applied");
   } else {
     const Database = require("better-sqlite3");
     const dbPath = process.env.SQLITE_PATH || path.join(__dirname, "learnquest.sqlite");

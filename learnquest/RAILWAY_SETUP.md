@@ -13,7 +13,7 @@
 7. Open `/api/health` on the public LearnQuest domain. It should report `"database":"mysql"` and a `dbLatencyMs` value.
 8. Open the main domain, create/login a child, enter Jungle World and start Level 1.
 
-No manual SQL import is required. Startup creates the runner tables and updates seed content automatically.
+No manual SQL import is required. Startup creates the runner tables, updates seed content, and automatically applies the compatibility upgrade needed by older MySQL databases (including widening `children.pin` for bcrypt hashes).
 
 ### Upgrading an existing (already-deployed) instance
 

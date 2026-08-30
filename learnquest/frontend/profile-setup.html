@@ -61,7 +61,7 @@
             <input type="password" id="pPin" inputmode="numeric" maxlength="4" pattern="\d{4}" required>
           </div>
           <div id="formError" class="error-text hidden"></div>
-          <button type="submit" class="btn btn-primary btn-block" data-i18n="profile_save_button">Create Profile</button>
+          <button type="submit" id="createProfileBtn" class="btn btn-primary btn-block" data-i18n="profile_save_button">Create Profile</button>
         </form>
       </div>
 
@@ -100,7 +100,11 @@
   document.getElementById("profileForm").addEventListener("submit", async (e) => {
     e.preventDefault();
     const errEl = document.getElementById("formError");
+    const submitBtn = document.getElementById("createProfileBtn");
     errEl.classList.add("hidden");
+    submitBtn.disabled = true;
+    const oldLabel = submitBtn.textContent;
+    submitBtn.textContent = "Creating…";
     try {
       const payload = {
         name: document.getElementById("pName").value,
@@ -118,6 +122,9 @@
     } catch (err) {
       errEl.textContent = err.message;
       errEl.classList.remove("hidden");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = oldLabel;
     }
   });
 </script>

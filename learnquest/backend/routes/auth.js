@@ -71,6 +71,17 @@ router.post("/child/create", requireAuth("parent"), asyncRoute(async (req, res) 
     return res.status(400).json({ error: "Valid name, age (4-12), and a 4-digit PIN are required" });
   }
 
+  // A valid JWT can become stale if a database is reset/replaced while the
+  // browser still has the old session. Check the parent before inserting so
+  // the foreign-key constraint never turns this into a generic 500 error.
+  const parent = await db.one("SELECT id FROM parents WHERE id = ?", [req.user.id]);
+  if (!parent) {
+    return res.status(401).json({
+      error: "Your parent session is no longer valid. Please sign in again.",
+      code: "STALE_PARENT_SESSION",
+    });
+  }
+
   const id = `child_${nanoid(10)}`;
   const pinHash = await hashPin(pin);
   await db.transaction(async (tx) => {

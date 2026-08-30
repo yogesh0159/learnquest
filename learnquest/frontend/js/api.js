@@ -13,7 +13,18 @@ async function apiRequest(path, { method = "GET", body, auth = true } = {}) {
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.error || `Request failed (${res.status})`);
+    if (res.status === 401 && auth) {
+      const role = localStorage.getItem("lq_role");
+      clearSession();
+      const destination = role === "child" ? "child-login.html" : "parent.html";
+      const err = new Error(data.error || "Your session expired. Please sign in again.");
+      err.code = data.code || "SESSION_INVALID";
+      setTimeout(() => { window.location.href = destination; }, 900);
+      throw err;
+    }
+    const err = new Error(data.error || `Request failed (${res.status})`);
+    err.code = data.code || null;
+    throw err;
   }
   return data;
 }
