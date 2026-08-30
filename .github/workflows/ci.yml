@@ -20,10 +20,10 @@ jobs:
         with:
           node-version: "20.x"
           cache: "npm"
-          cache-dependency-path: learnquest/backend/package-lock.json
+          cache-dependency-path: learnquest/package-lock.json
 
       - name: Install root dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install --ignore-scripts --no-audit --no-fund
 
       - name: Install backend dependencies
         run: npm install --no-audit --no-fund
