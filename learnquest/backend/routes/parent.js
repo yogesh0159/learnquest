@@ -53,11 +53,13 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
   `, [req.params.childId]);
 
   const runnerRows = await db.all(`
-    SELECT l.level_number, l.name_en, s.best_score, s.best_stars, s.best_accuracy, s.runs_completed
+    SELECT l.world_id, w.name_en AS world_name, w.sort_order AS world_sort_order,
+      l.level_number, l.name_en, s.best_score, s.best_stars, s.best_accuracy, s.runs_completed
     FROM level_run_stats s
     JOIN game_levels l ON l.id = s.level_id
+    JOIN worlds w ON w.id = l.world_id
     WHERE s.child_id = ?
-    ORDER BY l.level_number ASC
+    ORDER BY w.sort_order ASC, l.level_number ASC
   `, [req.params.childId]);
   const runTotals = await db.one(`
     SELECT COUNT(*) AS total_runs, COALESCE(SUM(obstacles_dodged), 0) AS obstacles_dodged,
@@ -97,6 +99,7 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
       bestScore: Number(runTotals?.best_score || 0),
       bestStars: Number(runTotals?.best_stars || 0),
       levels: runnerRows.map((r) => ({
+        world_id: r.world_id, world_name: r.world_name,
         level_number: Number(r.level_number), name: r.name_en, best_score: Number(r.best_score || 0),
         best_stars: Number(r.best_stars || 0), best_accuracy: Number(r.best_accuracy || 0), runs_completed: Number(r.runs_completed || 0),
       })),

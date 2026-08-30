@@ -5,7 +5,7 @@ Build target: GitHub `/learnquest` folder → Railway application service → Ra
 ## Automated checks completed
 
 - `npm run check` passed.
-- 270 project validation checks passed.
+- 347 project validation checks passed after the World 2 expansion.
 - All backend JavaScript files pass Node syntax validation.
 - All frontend JavaScript modules pass syntax validation.
 - All inline JavaScript in HTML pages passes syntax validation.
@@ -15,12 +15,13 @@ Build target: GitHub `/learnquest` folder → Railway application service → Ra
 - Legacy Phaser usage is absent from the 3D runner.
 - Seed content validation passed:
   - 3 subjects
-  - 72 learning questions
+  - 90 learning questions
   - 8 questions for every subject × age-group combination
   - 4 worlds
   - 10 Jungle levels
-  - Level 10 boss
-  - 9 rewards
+  - 10 Maths Kingdom levels
+  - Jungle Guardian and Number Dragon boss levels
+  - 12 rewards
 - SQLite schema creation passed with all 16 application tables.
 - MySQL schema definition includes all 16 required tables.
 - SQLite integration smoke test passed for:
@@ -34,6 +35,18 @@ Build target: GitHub `/learnquest` folder → Railway application service → Ra
   - daily activity
   - parent analytics joins
   - foreign-key integrity
+
+## Maths Kingdom World 2 validation
+
+- `node scripts/validate-project.js` passed with **347 checks**.
+- New `world-maths_kingdom.html` local asset references passed.
+- New `maths-kingdom-game.html` local asset references passed.
+- `frontend/js/kingdom-runner.js` passes module syntax validation.
+- Backend seed now validates 10 Maths Kingdom levels and a Level 10 Number Dragon boss.
+- Maths question pools validate at 14+ questions for every supported age group.
+- Dashboard progression uses per-child `is_unlocked` state instead of exposing World 2 early.
+- Cross-world backend progression unlocks the first level of the next implemented world after a final level is completed.
+- World 2 uses the existing database schema, so no manual SQL migration/import is required.
 
 ## Deployment smoke check after GitHub upload
 

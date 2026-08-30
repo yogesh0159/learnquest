@@ -101,3 +101,26 @@
 
 ## Originality
 This project uses runner mechanics inspired by the general endless-runner genre. All code, procedural geometry, level presentation, UI, characters and environment assets in this build are original LearnQuest implementations and do not include Temple Run art/assets/branding.
+
+
+## World 2 — Maths Kingdom (2026-08-30)
+- [x] Maths Kingdom activated as the second playable world
+- [x] Unlock requires completion of Jungle Level 10
+- [x] Cross-world progression unlocks Maths Kingdom Level 1 automatically
+- [x] Existing Jungle graduates are reconciled automatically during seed/startup
+- [x] 10 new Maths Kingdom levels
+- [x] Castle Gate, Number Market, Fraction Bridge, Shape Courtyard
+- [x] Multiplication Tower, Division Dungeon, Clockwork Hall
+- [x] Geometry Garden, Royal Equation Hall, Dragon Tower
+- [x] Procedural 3D castle environment
+- [x] Royal barrel, portcullis, knight shield, moat gap and swinging mace hazards
+- [x] Royal seal mission collectibles
+- [x] Maths learning gates integrated into all 10 levels
+- [x] Number Dragon boss with 6 HP and 8 learning gates
+- [x] 18 new Maths questions across ages 4-6, 7-9 and 10-12
+- [x] Royal Cape reward
+- [x] Baby Dragon pet reward
+- [x] Crystal Sword reward
+- [x] Dashboard shows per-world unlock state and completion progress
+- [x] Jungle boss result links directly into the newly unlocked Maths Kingdom
+- [x] Backend remains schema-compatible with the existing Railway MySQL database

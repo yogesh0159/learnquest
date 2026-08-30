@@ -27,3 +27,12 @@ test("missionForLevel scales targets up for later normal levels", () => {
   const late = missionForLevel(9, false);
   assert.ok(late.coinTarget >= early.coinTarget);
 });
+
+test("missionForLevel returns Maths Kingdom targets and boss label", () => {
+  const early = missionForLevel(1, false, "maths_kingdom");
+  const boss = missionForLevel(10, true, "maths_kingdom");
+  assert.equal(early.keyTarget, 2);
+  assert.equal(boss.keyTarget, 4);
+  assert.equal(boss.coinTarget, 45);
+  assert.equal(boss.label, "Defeat the Number Dragon");
+});

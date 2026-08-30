@@ -6,14 +6,14 @@ LearnQuest is a parent + child gamified learning web app. This build is ready fo
 
 - Parent signup/login and child profiles with PIN login
 - English / Hindi / Marathi interface data
-- 72 bundled age-group learning questions (Maths / English / GK)
+- 90 bundled age-group learning questions (Maths / English / GK), including 18 fresh Maths Kingdom questions
 - MySQL production database with automatic schema creation and seed data
 - SQLite fallback for local development
 - XP, coins, overall level and streaks
 - Parent-assigned tasks and progress dashboard
 - Reward shop with unlock + equip support
-- 4 worlds in the data model; Jungle World is the active playable world
-- 10 Jungle levels with progressive unlocks and a boss level
+- 4 worlds in the roadmap; Jungle World and Maths Kingdom are implemented, while Space World and Puzzle Island remain future worlds
+- 20 playable levels: 10 Jungle levels + 10 Maths Kingdom levels, each with progressive unlocks and a boss level
 - **Three.js 3D Jungle Runner** with original procedural graphics (Three.js 0.185.1 is pinned server-side and served locally, with matching CDN fallbacks)
   - auto-running 3-lane runway
   - left/right lane switching
@@ -30,6 +30,16 @@ LearnQuest is a parent + child gamified learning web app. This build is ready fo
   - level missions, 3-star scoring and best-run statistics
   - level unlock, XP and coin rewards saved to MySQL
   - equipped cape, parrot, sword and power rewards affect the runner
+- **World 2: Maths Kingdom 3D Castle Runner**
+  - unlocks only after Jungle Level 10 / Jungle Guardian is completed
+  - 10 new levels from Castle Gate to Dragon Tower
+  - castle roads, towers, banners, moat bridge, dungeon, geometry garden and royal hall themes
+  - new barrel, portcullis, knight-shield, broken-drawbridge and swinging-mace obstacle visuals
+  - royal seal mission collectibles and maths-only learning gates
+  - Level 10 boss battle against the procedural 3D Number Dragon
+  - 18 additional age-group maths questions for more replay variety
+  - new Royal Cape, Baby Dragon and Crystal Sword shop rewards
+  - existing Jungle players who already beat Level 10 receive Maths Kingdom Level 1 automatically on deploy
 
 The runner uses original low-poly/procedural geometry and Temple-Run-style **mechanics only**; it does not copy Temple Run art, characters, maps, branding or assets.
 

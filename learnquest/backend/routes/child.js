@@ -10,7 +10,7 @@ router.get("/me", requireAuth("child"), asyncRoute(async (req, res) => {
   if (!child) return res.status(404).json({ error: "Child not found" });
 
   const worlds = await db.all("SELECT * FROM worlds ORDER BY sort_order");
-  const levels = await db.all("SELECT * FROM game_levels WHERE world_id = ? ORDER BY level_number", ["jungle"]);
+  const levels = await db.all("SELECT * FROM game_levels ORDER BY world_id, level_number");
   const progress = await db.all("SELECT * FROM child_level_progress WHERE child_id = ?", [child.id]);
   const runStats = await db.all("SELECT * FROM level_run_stats WHERE child_id = ?", [child.id]);
   const equipped = await db.all(`
@@ -41,6 +41,27 @@ router.get("/me", requireAuth("child"), asyncRoute(async (req, res) => {
     };
   });
 
+  const levelsByWorld = {};
+  for (const level of levelsWithStatus) {
+    if (!levelsByWorld[level.world_id]) levelsByWorld[level.world_id] = [];
+    levelsByWorld[level.world_id].push(level);
+  }
+
+  const worldsForChild = worlds.map((w) => {
+    const worldLevels = levelsByWorld[w.id] || [];
+    const implemented = Number(w.is_active || 0) === 1;
+    const hasUnlockedProgress = worldLevels.some((level) => level.status === "unlocked" || level.status === "completed");
+    const completedLevels = worldLevels.filter((level) => level.status === "completed").length;
+    return {
+      ...w,
+      is_active: implemented ? 1 : 0,
+      is_unlocked: implemented && (w.id === "jungle" || hasUnlockedProgress) ? 1 : 0,
+      sort_order: Number(w.sort_order || 0),
+      completed_levels: completedLevels,
+      total_levels: worldLevels.length,
+    };
+  });
+
   res.json({
     child: {
       id: child.id,
@@ -54,8 +75,10 @@ router.get("/me", requireAuth("child"), asyncRoute(async (req, res) => {
       overall_level: Number(child.overall_level || 1),
       streak_count: Number(child.streak_count || 0),
     },
-    worlds: worlds.map((w) => ({ ...w, is_active: Number(w.is_active || 0), sort_order: Number(w.sort_order || 0) })),
-    jungleLevels: levelsWithStatus,
+    worlds: worldsForChild,
+    levelsByWorld,
+    jungleLevels: levelsByWorld.jungle || [],
+    mathsKingdomLevels: levelsByWorld.maths_kingdom || [],
     equippedRewards: equipped.map((r) => ({
       slot: r.slot,
       reward_id: r.reward_id,

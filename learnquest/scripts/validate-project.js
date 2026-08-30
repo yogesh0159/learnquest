@@ -73,13 +73,16 @@ try {
   assert(start >= 0 && end > start, 'Seed content section is readable');
   const ctx = {};
   vm.createContext(ctx);
-  vm.runInContext(seed.slice(start, end) + ';globalThis.__seed={subjects,questions,worlds,jungleLevels,rewards};', ctx);
+  vm.runInContext(seed.slice(start, end) + ';globalThis.__seed={subjects,questions,worlds,jungleLevels,mathsKingdomLevels,rewards};', ctx);
   const data = ctx.__seed;
   assert(data.subjects.length === 3, 'Seed has 3 learning subjects');
-  assert(data.questions.length >= 72, 'Seed has at least 72 learning questions');
+  assert(data.questions.length >= 90, 'Seed has at least 90 learning questions after Maths Kingdom expansion');
   assert(data.worlds.length === 4, 'Seed has 4 worlds');
   assert(data.jungleLevels.length === 10, 'Seed has 10 Jungle levels');
   assert(data.jungleLevels[data.jungleLevels.length - 1].is_boss === 1, 'Level 10 is the Jungle Guardian boss');
+  assert(data.mathsKingdomLevels.length === 10, 'Seed has 10 Maths Kingdom levels');
+  assert(data.mathsKingdomLevels[data.mathsKingdomLevels.length - 1].is_boss === 1, 'Maths Kingdom Level 10 is the Number Dragon boss');
+  assert(data.worlds.find((w) => w.id === 'maths_kingdom')?.is_active === 1, 'Maths Kingdom is implemented and active');
   assert(data.rewards.length >= 9, 'Seed has at least 9 rewards');
   const counts = {};
   for (const q of data.questions) {
@@ -90,6 +93,9 @@ try {
   }
   for (const subject of ['maths','english','gk']) for (const age of ['4-6','7-9','10-12']) {
     assert((counts[`${subject}|${age}`] || 0) >= 8, `At least 8 ${subject} questions for age ${age}`);
+  }
+  for (const age of ['4-6','7-9','10-12']) {
+    assert((counts[`maths|${age}`] || 0) >= 14, `Maths Kingdom has at least 14 maths questions for age ${age}`);
   }
 
   // Database schema coverage.
@@ -110,6 +116,13 @@ try {
   assert(runner.includes('runnerAnswer') && runner.includes('spawnAnswerGate'), 'Runner learning gates are integrated');
   assert(runner.includes('crash("wrong-answer")'), 'Wrong learning lane can end the run');
   assert(!runner.toLowerCase().includes('phaser'), 'Legacy Phaser engine is not used by the 3D runner');
+  const kingdomRunner = read('frontend/js/kingdom-runner.js');
+  assert(kingdomRunner.includes('/vendor/three/three.module.js'), 'Maths Kingdom prefers locally served Three.js');
+  assert(kingdomRunner.includes('state.mathsKingdomLevels'), 'Maths Kingdom loads its own level progression');
+  assert(kingdomRunner.includes('spawnAnswerGate') && kingdomRunner.includes('runnerAnswer'), 'Maths Kingdom learning gates are integrated');
+  assert(kingdomRunner.includes('buildDragon()'), 'Maths Kingdom includes the Number Dragon boss');
+  const dashboard = read('frontend/dashboard.html');
+  assert(dashboard.includes('is_unlocked') && dashboard.includes('world-maths_kingdom.html') === false, 'Dashboard uses per-child world unlock state');
 
 
 

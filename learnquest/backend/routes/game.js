@@ -16,8 +16,15 @@ function clampNumber(value, min, max, fallback = 0) {
   return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-function missionForLevel(levelNumber, isBoss = false) {
+function missionForLevel(levelNumber, isBoss = false, worldId = "jungle") {
   const n = Number(levelNumber || 1);
+  if (worldId === "maths_kingdom") {
+    if (isBoss) return { keyTarget: 4, coinTarget: 45, label: "Defeat the Number Dragon" };
+    if (n === 1) return { keyTarget: 2, coinTarget: 18, label: "Enter the Maths Kingdom" };
+    if (n <= 3) return { keyTarget: 2, coinTarget: 22, label: "Collect the royal number seals" };
+    if (n <= 6) return { keyTarget: 3, coinTarget: 28, label: "Cross the castle challenge halls" };
+    return { keyTarget: 4, coinTarget: 36, label: "Reach the Dragon Tower" };
+  }
   if (isBoss) return { keyTarget: 3, coinTarget: 35, label: "Defeat the Jungle Guardian" };
   if (n === 1) return { keyTarget: 1, coinTarget: 12, label: "Learn the runner controls" };
   if (n <= 3) return { keyTarget: 2, coinTarget: 18, label: "Collect the golden keys" };
@@ -72,10 +79,29 @@ async function logDailyGameMinutes(tx, childId, durationSeconds) {
 }
 
 async function unlockNextLevel(tx, childId, level) {
-  const nextLevel = await tx.one(
+  let nextLevel = await tx.one(
     "SELECT * FROM game_levels WHERE world_id = ? AND level_number = ?",
     [level.world_id, Number(level.level_number) + 1]
   );
+
+  // If this was the final level of a world, continue into the next implemented
+  // world. This keeps progression seamless as new worlds are activated later.
+  if (!nextLevel) {
+    const currentWorld = await tx.one("SELECT sort_order FROM worlds WHERE id = ?", [level.world_id]);
+    if (currentWorld) {
+      const nextWorld = await tx.one(
+        "SELECT * FROM worlds WHERE is_active = 1 AND sort_order > ? ORDER BY sort_order ASC LIMIT 1",
+        [Number(currentWorld.sort_order || 0)]
+      );
+      if (nextWorld) {
+        nextLevel = await tx.one(
+          "SELECT * FROM game_levels WHERE world_id = ? ORDER BY level_number ASC LIMIT 1",
+          [nextWorld.id]
+        );
+      }
+    }
+  }
+
   if (!nextLevel) return null;
 
   const nextProgress = await tx.one(
@@ -189,7 +215,7 @@ router.post("/runner/start", requireAuth("child"), asyncRoute(async (req, res) =
 
     return {
       runId,
-      mission: missionForLevel(level.level_number, Number(level.is_boss || 0) === 1),
+      mission: missionForLevel(level.level_number, Number(level.is_boss || 0) === 1, level.world_id),
       questionCount: Number(level.questions_required || 3),
       isBoss: Number(level.is_boss || 0) === 1,
       bossHp: Number(level.boss_hp || 5),
@@ -351,7 +377,7 @@ router.post("/runner/complete", requireAuth("child"), asyncRoute(async (req, res
     const requiredCorrect = Math.max(1, configuredRequired);
     const learningPassed = attempted >= requiredCorrect && correctCount >= requiredCorrect;
 
-    const mission = missionForLevel(level.level_number, isBoss);
+    const mission = missionForLevel(level.level_number, isBoss, level.world_id);
     const missionPassed = keys >= mission.keyTarget;
     const passed = learningPassed && missionPassed;
     const accuracy = attempted ? Math.round((correctCount / attempted) * 100) : 0;

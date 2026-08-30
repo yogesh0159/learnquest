@@ -268,9 +268,39 @@ questions.push(
   { subject_id:"gk", topic:"Human Body", age_group:"10-12", difficulty:"hard", question_en:"What is the largest organ of the human body?", question_hi:"मानव शरीर का सबसे बड़ा अंग कौन सा है?", question_mr:"मानवी शरीरातील सर्वात मोठा अवयव कोणता?", options:[{en:"Skin",hi:"त्वचा",mr:"त्वचा"},{en:"Heart",hi:"हृदय",mr:"हृदय"},{en:"Brain",hi:"मस्तिष्क",mr:"मेंदू"},{en:"Lung",hi:"फेफड़ा",mr:"फुफ्फुस"}], correct_index:0, explanation_en:"The skin is the body's largest organ.", explanation_hi:"त्वचा शरीर का सबसे बड़ा अंग है।", explanation_mr:"त्वचा हा शरीरातील सर्वात मोठा अवयव आहे.", xp_reward:20 }
 );
 
+
+// ---- Maths Kingdom bonus question bank ----
+// World 2 is maths-focused, so expand the maths pool to keep replayed levels
+// fresh instead of cycling through the original eight questions per age group.
+questions.push(
+  // Ages 4-6
+  { subject_id:"maths", topic:"Addition", age_group:"4-6", difficulty:"easy", question_en:"4 + 5 = ?", question_hi:"4 + 5 = ?", question_mr:"4 + 5 = ?", options:["7","8","9","10"], correct_index:2, explanation_en:"Four plus five makes nine.", explanation_hi:"चार और पाँच मिलाकर नौ होते हैं।", explanation_mr:"चार आणि पाच मिळून नऊ होतात.", xp_reward:10 },
+  { subject_id:"maths", topic:"Subtraction", age_group:"4-6", difficulty:"easy", question_en:"9 - 3 = ?", question_hi:"9 - 3 = ?", question_mr:"9 - 3 = ?", options:["5","6","7","8"], correct_index:1, explanation_en:"Nine take away three leaves six.", explanation_hi:"नौ में से तीन घटाने पर छह बचते हैं।", explanation_mr:"नऊ मधून तीन वजा केल्यावर सहा उरतात.", xp_reward:10 },
+  { subject_id:"maths", topic:"Shapes", age_group:"4-6", difficulty:"easy", question_en:"Which shape has 3 sides?", question_hi:"किस आकार की 3 भुजाएँ होती हैं?", question_mr:"कोणत्या आकाराला 3 बाजू असतात?", options:[{en:"Circle",hi:"वृत्त",mr:"वर्तुळ"},{en:"Triangle",hi:"त्रिभुज",mr:"त्रिकोण"},{en:"Square",hi:"वर्ग",mr:"चौरस"},{en:"Rectangle",hi:"आयत",mr:"आयत"}], correct_index:1, explanation_en:"A triangle has three sides.", explanation_hi:"त्रिभुज की तीन भुजाएँ होती हैं।", explanation_mr:"त्रिकोणाला तीन बाजू असतात.", xp_reward:10 },
+  { subject_id:"maths", topic:"Comparison", age_group:"4-6", difficulty:"easy", question_en:"Which number is biggest?", question_hi:"कौन सी संख्या सबसे बड़ी है?", question_mr:"कोणती संख्या सर्वात मोठी आहे?", options:["3","8","5","6"], correct_index:1, explanation_en:"Eight is greater than 3, 5 and 6.", explanation_hi:"आठ, 3, 5 और 6 से बड़ा है।", explanation_mr:"आठ हे 3, 5 आणि 6 पेक्षा मोठे आहे.", xp_reward:10 },
+  { subject_id:"maths", topic:"Patterns", age_group:"4-6", difficulty:"easy", question_en:"What comes next: 2, 4, 6, ?", question_hi:"आगे क्या आएगा: 2, 4, 6, ?", question_mr:"पुढे काय येईल: 2, 4, 6, ?", options:["7","8","9","10"], correct_index:1, explanation_en:"The pattern adds 2 each time, so 8 comes next.", explanation_hi:"हर बार 2 जोड़ते हैं, इसलिए अगली संख्या 8 है।", explanation_mr:"प्रत्येक वेळी 2 वाढते, म्हणून पुढची संख्या 8 आहे.", xp_reward:10 },
+  { subject_id:"maths", topic:"Counting", age_group:"4-6", difficulty:"easy", question_en:"How many fingers are on two hands?", question_hi:"दो हाथों में कुल कितनी उंगलियाँ होती हैं?", question_mr:"दोन हातांवर एकूण किती बोटे असतात?", options:["8","9","10","12"], correct_index:2, explanation_en:"Five fingers on each hand makes ten.", explanation_hi:"हर हाथ में पाँच उंगलियाँ, दोनों में कुल दस।", explanation_mr:"प्रत्येक हाताला पाच बोटे, म्हणजे एकूण दहा.", xp_reward:10 },
+
+  // Ages 7-9
+  { subject_id:"maths", topic:"Multiplication", age_group:"7-9", difficulty:"medium", question_en:"9 × 6 = ?", question_hi:"9 × 6 = ?", question_mr:"9 × 6 = ?", options:["45","48","54","56"], correct_index:2, explanation_en:"Nine groups of six make 54.", explanation_hi:"6 के 9 समूह मिलकर 54 होते हैं।", explanation_mr:"6 चे 9 गट मिळून 54 होतात.", xp_reward:15 },
+  { subject_id:"maths", topic:"Division", age_group:"7-9", difficulty:"medium", question_en:"42 ÷ 7 = ?", question_hi:"42 ÷ 7 = ?", question_mr:"42 ÷ 7 = ?", options:["5","6","7","8"], correct_index:1, explanation_en:"Seven fits into 42 six times.", explanation_hi:"42 में 7, छह बार आता है।", explanation_mr:"42 मध्ये 7 सहा वेळा येतो.", xp_reward:15 },
+  { subject_id:"maths", topic:"Fractions", age_group:"7-9", difficulty:"medium", question_en:"Which fraction equals one half?", question_hi:"कौन सा भिन्न एक-आधा के बराबर है?", question_mr:"कोणता अपूर्णांक अर्ध्याइतका आहे?", options:["1/3","2/4","3/4","2/3"], correct_index:1, explanation_en:"2/4 simplifies to 1/2.", explanation_hi:"2/4 को सरल करने पर 1/2 मिलता है।", explanation_mr:"2/4 साधे केल्यावर 1/2 मिळते.", xp_reward:15 },
+  { subject_id:"maths", topic:"Perimeter", age_group:"7-9", difficulty:"medium", question_en:"A square has side 5 cm. What is its perimeter?", question_hi:"एक वर्ग की भुजा 5 सेमी है। उसका परिमाप कितना है?", question_mr:"चौरसाची बाजू 5 सेमी आहे. त्याची परिमिती किती?", options:["10 cm","15 cm","20 cm","25 cm"], correct_index:2, explanation_en:"A square has four equal sides: 4 × 5 = 20 cm.", explanation_hi:"वर्ग की चार बराबर भुजाएँ होती हैं: 4 × 5 = 20 सेमी।", explanation_mr:"चौरसाला चार समान बाजू असतात: 4 × 5 = 20 सेमी.", xp_reward:15 },
+  { subject_id:"maths", topic:"Time", age_group:"7-9", difficulty:"medium", question_en:"How many minutes are in 2 hours?", question_hi:"2 घंटे में कितने मिनट होते हैं?", question_mr:"2 तासांत किती मिनिटे असतात?", options:["60","90","120","180"], correct_index:2, explanation_en:"Each hour has 60 minutes, so 2 hours is 120 minutes.", explanation_hi:"हर घंटे में 60 मिनट होते हैं, इसलिए 2 घंटे में 120 मिनट।", explanation_mr:"प्रत्येक तासात 60 मिनिटे, म्हणून 2 तासांत 120 मिनिटे.", xp_reward:15 },
+  { subject_id:"maths", topic:"Place Value", age_group:"7-9", difficulty:"medium", question_en:"What is the value of 7 in 3,742?", question_hi:"3,742 में 7 का स्थान-मूल्य क्या है?", question_mr:"3,742 मध्ये 7 चे स्थानमूल्य किती?", options:["7","70","700","7000"], correct_index:2, explanation_en:"Seven is in the hundreds place, so its value is 700.", explanation_hi:"7 सैकड़ों के स्थान पर है, इसलिए उसका मान 700 है।", explanation_mr:"7 शेकड्यांच्या स्थानी आहे, म्हणून त्याचे मूल्य 700 आहे.", xp_reward:15 },
+
+  // Ages 10-12
+  { subject_id:"maths", topic:"Algebra", age_group:"10-12", difficulty:"hard", question_en:"2x + 8 = 24. Find x.", question_hi:"2x + 8 = 24. x ज्ञात करें।", question_mr:"2x + 8 = 24. x शोधा.", options:["6","7","8","9"], correct_index:2, explanation_en:"2x = 16, so x = 8.", explanation_hi:"2x = 16, इसलिए x = 8।", explanation_mr:"2x = 16, म्हणून x = 8.", xp_reward:20 },
+  { subject_id:"maths", topic:"Percentages", age_group:"10-12", difficulty:"hard", question_en:"What is 25% of 200?", question_hi:"200 का 25% कितना है?", question_mr:"200 चे 25% किती?", options:["25","40","50","75"], correct_index:2, explanation_en:"25% is one quarter, and one quarter of 200 is 50.", explanation_hi:"25% एक चौथाई है और 200 का एक चौथाई 50 है।", explanation_mr:"25% म्हणजे एक चतुर्थांश आणि 200 चा एक चतुर्थांश 50 आहे.", xp_reward:20 },
+  { subject_id:"maths", topic:"Ratio", age_group:"10-12", difficulty:"hard", question_en:"Simplify the ratio 12:18.", question_hi:"12:18 के अनुपात को सरल करें।", question_mr:"12:18 हे प्रमाण साधे करा.", options:["2:3","3:4","4:5","6:9"], correct_index:0, explanation_en:"Divide both numbers by 6 to get 2:3.", explanation_hi:"दोनों संख्याओं को 6 से भाग देने पर 2:3 मिलता है।", explanation_mr:"दोन्ही संख्यांना 6 ने भागल्यावर 2:3 मिळते.", xp_reward:20 },
+  { subject_id:"maths", topic:"Area", age_group:"10-12", difficulty:"hard", question_en:"A rectangle is 8 cm long and 5 cm wide. Its area is?", question_hi:"एक आयत 8 सेमी लंबा और 5 सेमी चौड़ा है। उसका क्षेत्रफल?", question_mr:"आयताची लांबी 8 सेमी आणि रुंदी 5 सेमी आहे. क्षेत्रफळ किती?", options:["13 cm²","26 cm²","40 cm²","80 cm²"], correct_index:2, explanation_en:"Area = length × width = 8 × 5 = 40 cm².", explanation_hi:"क्षेत्रफल = लंबाई × चौड़ाई = 8 × 5 = 40 सेमी²।", explanation_mr:"क्षेत्रफळ = लांबी × रुंदी = 8 × 5 = 40 सेमी².", xp_reward:20 },
+  { subject_id:"maths", topic:"Integers", age_group:"10-12", difficulty:"hard", question_en:"What is -4 + 9?", question_hi:"-4 + 9 कितना है?", question_mr:"-4 + 9 किती?", options:["-13","-5","5","13"], correct_index:2, explanation_en:"Moving 9 steps right from -4 lands on 5.", explanation_hi:"-4 से 9 कदम दाईं ओर जाने पर 5 मिलता है।", explanation_mr:"-4 पासून उजवीकडे 9 पावले गेल्यावर 5 मिळते.", xp_reward:20 },
+  { subject_id:"maths", topic:"Average", age_group:"10-12", difficulty:"hard", question_en:"What is the average of 6, 8 and 10?", question_hi:"6, 8 और 10 का औसत कितना है?", question_mr:"6, 8 आणि 10 यांची सरासरी किती?", options:["7","8","9","10"], correct_index:1, explanation_en:"(6 + 8 + 10) ÷ 3 = 24 ÷ 3 = 8.", explanation_hi:"(6 + 8 + 10) ÷ 3 = 24 ÷ 3 = 8।", explanation_mr:"(6 + 8 + 10) ÷ 3 = 24 ÷ 3 = 8.", xp_reward:20 }
+);
+
 const worlds = [
   { id: "jungle", name_en: "Jungle World", name_hi: "जंगल दुनिया", name_mr: "जंगल जग", emoji: "🌳", is_active: 1, sort_order: 1 },
-  { id: "maths_kingdom", name_en: "Maths Kingdom", name_hi: "गणित साम्राज्य", name_mr: "गणित राज्य", emoji: "🏰", is_active: 0, sort_order: 2 },
+  { id: "maths_kingdom", name_en: "Maths Kingdom", name_hi: "गणित साम्राज्य", name_mr: "गणित राज्य", emoji: "🏰", is_active: 1, sort_order: 2 },
   { id: "space", name_en: "Space World", name_hi: "अंतरिक्ष दुनिया", name_mr: "अंतराळ जग", emoji: "🚀", is_active: 0, sort_order: 3 },
   { id: "puzzle_island", name_en: "Puzzle Island", name_hi: "पहेली द्वीप", name_mr: "कोडे बेट", emoji: "🧩", is_active: 0, sort_order: 4 },
 ];
@@ -288,6 +318,19 @@ const jungleLevels = [
   { level_number: 10, name_en: "Boss Battle: Jungle Guardian", name_hi: "बॉस युद्ध: जंगल रक्षक", name_mr: "बॉस लढाई: जंगल संरक्षक", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 8, is_boss: 1, boss_hp: 5 },
 ];
 
+const mathsKingdomLevels = [
+  { level_number: 1, name_en: "Castle Gate", name_hi: "किले का द्वार", name_mr: "किल्ल्याचे दार", unlock_type: "prior_world", unlock_value: null, gate_subject_id: "maths", questions_required: 3, is_boss: 0, boss_hp: null },
+  { level_number: 2, name_en: "Number Market", name_hi: "संख्या बाज़ार", name_mr: "संख्या बाजार", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 3, is_boss: 0, boss_hp: null },
+  { level_number: 3, name_en: "Fraction Bridge", name_hi: "भिन्न पुल", name_mr: "अपूर्णांक पूल", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 3, is_boss: 0, boss_hp: null },
+  { level_number: 4, name_en: "Shape Courtyard", name_hi: "आकार आंगन", name_mr: "आकार अंगण", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 3, is_boss: 0, boss_hp: null },
+  { level_number: 5, name_en: "Multiplication Tower", name_hi: "गुणा मीनार", name_mr: "गुणाकार मनोरा", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 4, is_boss: 0, boss_hp: null },
+  { level_number: 6, name_en: "Division Dungeon", name_hi: "भाग कालकोठरी", name_mr: "भागाकार तळघर", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 4, is_boss: 0, boss_hp: null },
+  { level_number: 7, name_en: "Clockwork Hall", name_hi: "समय यंत्र सभा", name_mr: "घड्याळ सभागृह", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 4, is_boss: 0, boss_hp: null },
+  { level_number: 8, name_en: "Geometry Garden", name_hi: "ज्यामिति उद्यान", name_mr: "भूमिती बाग", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 5, is_boss: 0, boss_hp: null },
+  { level_number: 9, name_en: "Royal Equation Hall", name_hi: "शाही समीकरण सभा", name_mr: "राजेशाही समीकरण सभागृह", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 5, is_boss: 0, boss_hp: null },
+  { level_number: 10, name_en: "Boss Battle: Number Dragon", name_hi: "बॉस युद्ध: संख्या ड्रैगन", name_mr: "बॉस लढाई: संख्या ड्रॅगन", unlock_type: "prior_level", unlock_value: null, gate_subject_id: "maths", questions_required: 8, is_boss: 1, boss_hp: 6 },
+];
+
 const rewards = [
   { id: "reward_forest_fox", name_en: "Forest Fox", name_hi: "वन लोमड़ी", name_mr: "वन कोल्हा", type: "character", cost_coins: 0, emoji: "🦊" },
   { id: "reward_jungle_cape", name_en: "Jungle Cape", name_hi: "जंगल लबादा", name_mr: "जंगल झगा", type: "clothes", cost_coins: 100, emoji: "🧥" },
@@ -298,6 +341,9 @@ const rewards = [
   { id: "reward_focus_charm", name_en: "Focus Charm", name_hi: "फोकस ताबीज", name_mr: "फोकस ताईत", type: "power", cost_coins: 260, emoji: "⚡" },
   { id: "reward_bamboo_raft", name_en: "Bamboo Raft", name_hi: "बांस की बेड़ा", name_mr: "बांबूचा तराफा", type: "vehicle", cost_coins: 250, emoji: "🛶" },
   { id: "reward_treehouse", name_en: "Treehouse Decor", name_hi: "ट्रीहाउस सजावट", name_mr: "ट्रीहाऊस सजावट", type: "decoration", cost_coins: 180, emoji: "🏡" },
+  { id: "reward_royal_cape", name_en: "Royal Cape", name_hi: "शाही लबादा", name_mr: "राजेशाही झगा", type: "clothes", cost_coins: 320, emoji: "🦸" },
+  { id: "reward_baby_dragon", name_en: "Baby Dragon", name_hi: "नन्हा ड्रैगन", name_mr: "लहान ड्रॅगन", type: "pet", cost_coins: 360, emoji: "🐉" },
+  { id: "reward_crystal_sword", name_en: "Crystal Sword", name_hi: "क्रिस्टल तलवार", name_mr: "क्रिस्टल तलवार", type: "sword", cost_coins: 400, emoji: "⚔️" },
 ];
 
 async function upsertById(table, id, fields) {
@@ -353,6 +399,11 @@ async function seedDatabase() {
     await upsertById("game_levels", id, { world_id: "jungle", ...level });
   }
 
+  for (const level of mathsKingdomLevels) {
+    const id = `maths_kingdom_lvl_${level.level_number}`;
+    await upsertById("game_levels", id, { world_id: "maths_kingdom", ...level });
+  }
+
   // Rewards are always upserted so production databases receive newly added gear on redeploy.
   for (const reward of rewards) {
     const { id, ...fields } = reward;
@@ -370,6 +421,26 @@ async function seedDatabase() {
         "INSERT INTO child_level_progress (id, child_id, level_id, status) VALUES (?, ?, ?, ?)",
         [`clp_${nanoid(10)}`, child.id, "jungle_lvl_1", "unlocked"]
       );
+    }
+
+    // Existing players who already defeated the Jungle Guardian should receive
+    // World 2 immediately after this deployment. New players unlock it through
+    // normal cross-world progression in routes/game.js.
+    const jungleBossDone = await db.one(
+      "SELECT id FROM child_level_progress WHERE child_id = ? AND level_id = ? AND status = ?",
+      [child.id, "jungle_lvl_10", "completed"]
+    );
+    if (jungleBossDone) {
+      const kingdomProgress = await db.one(
+        "SELECT id FROM child_level_progress WHERE child_id = ? AND level_id = ?",
+        [child.id, "maths_kingdom_lvl_1"]
+      );
+      if (!kingdomProgress) {
+        await db.run(
+          "INSERT INTO child_level_progress (id, child_id, level_id, status) VALUES (?, ?, ?, ?)",
+          [`clp_${nanoid(10)}`, child.id, "maths_kingdom_lvl_1", "unlocked"]
+        );
+      }
     }
 
     const starterOwned = await db.one(
@@ -400,6 +471,7 @@ async function seedDatabase() {
     bundledQuestions: questions.length,
     worlds: worlds.length,
     jungleLevels: jungleLevels.length,
+    mathsKingdomLevels: mathsKingdomLevels.length,
     rewards: rewards.length,
   });
 }

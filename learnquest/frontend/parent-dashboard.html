@@ -141,7 +141,7 @@
       <div class="card-flat center"><div style="font-size:1.45rem;">🏆 ${runner.bestScore}</div><div class="muted">Best Score</div></div>
       <div class="card-flat center"><div style="font-size:1.45rem;">${"⭐".repeat(runner.bestStars || 0) || "—"}</div><div class="muted">Best Stars</div></div>`;
     document.getElementById("runnerLevels").innerHTML = runner.levels.length
-      ? runner.levels.map(l => `<div class="task-row"><div><b>Level ${l.level_number}: ${l.name}</b><div class="muted" style="font-size:.82rem;">${"⭐".repeat(l.best_stars)}${"☆".repeat(3-l.best_stars)} · 🧠 ${l.best_accuracy}% · ${l.runs_completed} completed runs</div></div><div>🏆 ${l.best_score}</div></div>`).join("")
+      ? runner.levels.map(l => `<div class="task-row"><div><div class="muted" style="font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;">${l.world_name || "Adventure World"}</div><b>Level ${l.level_number}: ${l.name}</b><div class="muted" style="font-size:.82rem;">${"⭐".repeat(l.best_stars)}${"☆".repeat(3-l.best_stars)} · 🧠 ${l.best_accuracy}% · ${l.runs_completed} completed runs</div></div><div>🏆 ${l.best_score}</div></div>`).join("")
       : `<p class="muted">No 3D runner activity yet.</p>`;
 
     const bars = document.getElementById("subjectBars");
