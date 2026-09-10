@@ -40,7 +40,9 @@ const api = {
   childUpdate: (payload) => apiRequest("/child/me", { method: "PUT", body: payload }),
 
   questions: (subject, count = 3) => apiRequest(`/questions?subject=${encodeURIComponent(subject)}&count=${count}`),
-  runnerQuestions: (subject, count = 3) => apiRequest(`/questions?subject=${encodeURIComponent(subject)}&count=${count}&runner=1`),
+  // Runner gates use adaptive selection: weak/unseen topics are prioritised
+  // while recently answered questions are de-prioritised.
+  runnerQuestions: (subject, count = 3) => apiRequest(`/questions?subject=${encodeURIComponent(subject)}&count=${count}&runner=1&adaptive=1`),
 
   gateAttempt: (payload) => apiRequest("/game/gate/attempt", { method: "POST", body: payload }),
   runnerStart: (payload) => apiRequest("/game/runner/start", { method: "POST", body: payload }),
