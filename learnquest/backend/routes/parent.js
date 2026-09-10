@@ -10,6 +10,65 @@ async function ownsChild(parentId, childId, dbApi = db) {
   return dbApi.one("SELECT id FROM children WHERE id = ? AND parent_id = ?", [childId, parentId]);
 }
 
+function pct(correct, attempted) {
+  const a = Number(attempted || 0);
+  return a ? Math.round((Number(correct || 0) / a) * 100) : null;
+}
+
+function buildLearningPlan({ subjectStats, topicStats, last7 }) {
+  const weekly = last7.reduce((acc, row) => {
+    acc.questionsAttempted += Number(row.questions_attempted || 0);
+    acc.questionsCorrect += Number(row.questions_correct || 0);
+    acc.gameMinutes += Number(row.minutes_game || 0);
+    const active = Number(row.questions_attempted || 0) > 0 || Number(row.minutes_game || 0) > 0;
+    if (active) acc.activeDays += 1;
+    return acc;
+  }, { questionsAttempted: 0, questionsCorrect: 0, gameMinutes: 0, activeDays: 0 });
+  weekly.accuracy = pct(weekly.questionsCorrect, weekly.questionsAttempted);
+
+  const normalizedSubjects = subjectStats.map((row) => ({
+    subject: row.name_en,
+    attempted: Number(row.attempted || 0),
+    correct: Number(row.correct || 0),
+    accuracy: pct(row.correct, row.attempted),
+  }));
+
+  const normalizedTopics = topicStats.map((row) => ({
+    topic: row.topic,
+    subject: row.subject,
+    attempted: Number(row.attempted || 0),
+    correct: Number(row.correct || 0),
+    accuracy: pct(row.correct, row.attempted),
+  }));
+
+  const focusTopics = normalizedTopics
+    .filter((row) => row.attempted >= 2 && row.accuracy !== null && row.accuracy < 70)
+    .sort((a, b) => (a.accuracy - b.accuracy) || (b.attempted - a.attempted))
+    .slice(0, 3);
+
+  const strongSubjects = normalizedSubjects
+    .filter((row) => row.attempted >= 4 && row.accuracy !== null && row.accuracy >= 80)
+    .sort((a, b) => b.accuracy - a.accuracy)
+    .slice(0, 3);
+
+  let momentum = "building";
+  if (weekly.activeDays >= 5) momentum = "strong";
+  else if (weekly.activeDays <= 1) momentum = "needs_routine";
+
+  let dailyPracticeMinutes = 10;
+  if (focusTopics.length >= 2) dailyPracticeMinutes = 15;
+  else if (weekly.questionsAttempted < 12) dailyPracticeMinutes = 12;
+
+  return {
+    weekly,
+    focusTopics,
+    strongSubjects,
+    momentum,
+    dailyPracticeMinutes,
+    hasEnoughData: weekly.questionsAttempted >= 5,
+  };
+}
+
 router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, res) => {
   if (!(await ownsChild(req.user.id, req.params.childId))) {
     return res.status(403).json({ error: "Not your child profile" });
@@ -45,7 +104,8 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
       const correct = Number(row.correct || 0);
       return { ...row, attempted, correct, accuracy: attempted ? Math.round((correct / attempted) * 100) : 0 };
     })
-    .filter((row) => row.accuracy < 60);
+    .filter((row) => row.accuracy < 60)
+    .sort((a, b) => a.accuracy - b.accuracy || b.attempted - a.attempted);
 
   const last7 = await db.all(`
     SELECT * FROM daily_activity WHERE child_id = ?
@@ -74,6 +134,7 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
   }));
   const totalAttempted = normalizedStats.reduce((sum, row) => sum + row.attempted, 0);
   const totalCorrect = normalizedStats.reduce((sum, row) => sum + row.correct, 0);
+  const learningPlan = buildLearningPlan({ subjectStats, topicStats, last7 });
 
   res.json({
     child: {
@@ -81,6 +142,7 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
       name: childRow.name,
       age: Number(childRow.age),
       language: childRow.language,
+      avatar: childRow.avatar,
       xp: Number(childRow.xp || 0),
       coins: Number(childRow.coins || 0),
       overall_level: Number(childRow.overall_level || 1),
@@ -92,6 +154,7 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
       accuracy: row.attempted ? Math.round((row.correct / row.attempted) * 100) : null,
     })),
     weakTopics,
+    learningPlan,
     last7Days: last7,
     runner: {
       totalRuns: Number(runTotals?.total_runs || 0),
@@ -109,8 +172,8 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
 
 router.post("/tasks", requireAuth("parent"), asyncRoute(async (req, res) => {
   const childId = String(req.body?.childId || "");
-  const title = String(req.body?.title || "").trim();
-  const description = String(req.body?.description || "").trim();
+  const title = String(req.body?.title || "").trim().slice(0, 160);
+  const description = String(req.body?.description || "").trim().slice(0, 1000);
   const rewardType = "coins";
   const rewardValue = Math.max(0, Math.min(10000, Number(req.body?.rewardValue || 0)));
 
@@ -136,3 +199,4 @@ router.get("/tasks/:childId", requireAuth("parent"), asyncRoute(async (req, res)
 }));
 
 module.exports = router;
+module.exports.buildLearningPlan = buildLearningPlan;
