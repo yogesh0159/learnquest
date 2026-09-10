@@ -17,6 +17,19 @@ function checkSyntax(rel, moduleMode = false) {
   assert(result.status === 0, `JavaScript syntax: ${rel}${result.stderr ? `\n${result.stderr}` : ''}`);
 }
 
+function collectJsFiles(absDir) {
+  const files = [];
+  function walk(dir) {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.isFile() && entry.name.endsWith('.js')) files.push(path.relative(root, full));
+    }
+  }
+  walk(absDir);
+  return files;
+}
+
 try {
   // Packages / pinned engine
   const rootPkg = JSON.parse(read('package.json'));
@@ -26,30 +39,26 @@ try {
   assert(backendPkg.dependencies?.three === '0.185.1', 'Three.js is pinned to 0.185.1');
   assert(Boolean(backendPkg.dependencies?.mysql2), 'MySQL driver is present');
 
-  // Backend and browser JS syntax.
-  const backendFiles = [];
-  function walk(dir) {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) walk(full);
-      else if (entry.isFile() && entry.name.endsWith('.js')) backendFiles.push(path.relative(root, full));
-    }
-  }
-  walk(path.join(root, 'backend'));
-  backendFiles.forEach((f) => checkSyntax(f));
-  for (const f of fs.readdirSync(path.join(root, 'frontend/js')).filter((n) => n.endsWith('.js'))) checkSyntax(`frontend/js/${f}`, true);
+  // Backend and all browser JS syntax, including nested RealWorld modules.
+  collectJsFiles(path.join(root, 'backend')).forEach((f) => checkSyntax(f));
+  collectJsFiles(path.join(root, 'frontend', 'js')).forEach((f) => checkSyntax(f, true));
 
   // Inline scripts and local asset links.
   const htmlFiles = fs.readdirSync(path.join(root, 'frontend')).filter((n) => n.endsWith('.html'));
   for (const name of htmlFiles) {
     const rel = `frontend/${name}`;
     const html = read(rel);
-    const inlineRe = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+    const inlineRe = /<script([^>]*)>([\s\S]*?)<\/script>/gi;
     let m; let index = 0;
     while ((m = inlineRe.exec(html))) {
-      if (!m[1].trim()) continue;
+      const attrs = m[1] || '';
+      const body = m[2] || '';
+      if (/\bsrc\s*=/i.test(attrs) || !body.trim()) continue;
+      const typeMatch = attrs.match(/\btype\s*=\s*["']([^"']+)["']/i);
+      const scriptType = String(typeMatch?.[1] || '').toLowerCase();
+      if (scriptType === 'importmap' || scriptType === 'application/json' || scriptType === 'application/ld+json') continue;
       const tmp = path.join(os.tmpdir(), `lq-inline-${name}-${index++}.mjs`);
-      fs.writeFileSync(tmp, m[1]);
+      fs.writeFileSync(tmp, body);
       const result = cp.spawnSync(process.execPath, ['--check', tmp], { encoding: 'utf8' });
       fs.unlinkSync(tmp);
       assert(result.status === 0, `Inline JavaScript syntax: ${rel}`);
@@ -61,6 +70,8 @@ try {
       if (/^(?:https?:|mailto:|tel:|#|data:)/i.test(ref)) continue;
       const clean = ref.split(/[?#]/)[0];
       if (!clean) continue;
+      // /vendor/* is served from node_modules by Express rather than frontend/.
+      if (clean.startsWith('/vendor/')) continue;
       const target = clean.startsWith('/') ? path.join(root, 'frontend', clean.replace(/^\//,'')) : path.resolve(path.dirname(path.join(root, rel)), clean);
       assert(fs.existsSync(target), `Local asset exists: ${rel} -> ${ref}`);
     }
@@ -108,7 +119,7 @@ try {
     }
   }
 
-  // Runner integration checks.
+  // Existing runner integration checks.
   const runner = read('frontend/js/jungle-runner.js');
   assert(runner.includes('/vendor/three/three.module.js'), 'Runner prefers locally served Three.js');
   assert(runner.includes('three@0.185.1'), 'Runner CDN fallback matches pinned Three.js');
@@ -124,9 +135,16 @@ try {
   const dashboard = read('frontend/dashboard.html');
   assert(dashboard.includes('is_unlocked') && dashboard.includes('world-maths_kingdom.html') === false, 'Dashboard uses per-child world unlock state');
 
+  // RealWorld V1 foundation checks.
+  const characterController = read('frontend/js/game/character-controller.js');
+  assert(characterController.includes('GLTFLoader') && characterController.includes('procedural'), 'RealWorld CharacterController supports GLB plus procedural fallback');
+  assert(characterController.includes('player_gameplay_collider'), 'Character visual and gameplay collider are separated');
+  const characterPresets = read('frontend/js/character-presets.js');
+  assert(characterPresets.includes('human_boy_v1') && characterPresets.includes('human_girl_v1'), 'Boy and girl explorer presets exist');
+  const characterLab = read('frontend/character-lab.html');
+  assert(characterLab.includes('type="importmap"') && characterLab.includes('character-lab.js'), '3D explorer lab is wired with a Three.js import map');
 
-
-  // Production hotfix regression checks.
+  // Production hotfix and security regression checks.
   const dbIndex = read('backend/db/index.js');
   assert(dbIndex.includes('ALTER TABLE children MODIFY COLUMN pin VARCHAR(255) NOT NULL'), 'Existing MySQL children.pin is widened automatically');
   const authRoute = read('backend/routes/auth.js');
@@ -136,8 +154,12 @@ try {
   const serverSource = read('backend/server.js');
   assert(serverSource.includes('https://fonts.googleapis.com') && serverSource.includes('https://fonts.gstatic.com'), 'CSP allows configured Google Fonts');
   assert(serverSource.includes('https://cdn.jsdelivr.net') && serverSource.includes('https://unpkg.com'), 'CSP allows Three.js CDN fallbacks');
+  assert(!serverSource.includes('"unsafe-eval"') && !serverSource.includes("'unsafe-eval'"), 'CSP does not allow unsafe-eval');
+  assert(serverSource.includes('corsOptions = { origin: false }'), 'Production defaults to same-origin when ALLOWED_ORIGINS is empty');
+  assert(serverSource.includes('/vendor/three-addons'), 'Official Three.js add-ons are served locally');
   const profileSetup = read('frontend/profile-setup.html');
   assert(profileSetup.includes('id="createProfileBtn"') && profileSetup.includes('submitBtn.disabled = true'), 'Child profile form prevents duplicate submissions');
+  assert(profileSetup.includes('human_boy_v1') || profileSetup.includes('character-presets.js'), 'Profile setup supports RealWorld explorer selection');
 
   console.log(`✅ LearnQuest validation passed (${ok.length} checks).`);
 } catch (error) {
