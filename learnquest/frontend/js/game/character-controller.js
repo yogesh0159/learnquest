@@ -86,7 +86,6 @@ function buildProceduralExplorer(preset = {}) {
 
   const chestBadge = new THREE.Mesh(new THREE.CircleGeometry(0.12, 16), shirtAccent);
   chestBadge.position.set(0, 0.82, 0.36);
-  chestBadge.rotation.y = Math.PI;
   hips.add(chestBadge);
 
   const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.15, 0.22, 12), skin);
@@ -183,10 +182,7 @@ function buildProceduralExplorer(preset = {}) {
   leftLegPivot.add(leftShoe);
   rightLegPivot.add(rightShoe);
 
-  const backpack = new THREE.Mesh(
-    new THREE.RoundedBoxGeometry ? new THREE.RoundedBoxGeometry(0.56, 0.68, 0.24, 4, 0.08) : new THREE.BoxGeometry(0.56, 0.68, 0.24),
-    shirtAccent
-  );
+  const backpack = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.68, 0.24), shirtAccent);
   backpack.position.set(0, 0.72, -0.43);
   hips.add(backpack);
 
