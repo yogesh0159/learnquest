@@ -21,10 +21,69 @@ function localizeOption(option, lang) {
   return String(option ?? "");
 }
 
+function rankAdaptiveQuestions(rows, topicStats = [], recentQuestionIds = []) {
+  const recent = new Set(recentQuestionIds.map(String));
+  const statsByTopic = new Map(topicStats.map((row) => {
+    const attempted = Number(row.attempted || 0);
+    const correct = Number(row.correct || 0);
+    const accuracy = attempted ? correct / attempted : null;
+    return [String(row.topic), { attempted, correct, accuracy }];
+  }));
+
+  return rows
+    .map((question, index) => {
+      const stats = statsByTopic.get(String(question.topic));
+      let priority = 0;
+      // Unseen topics get exploration weight. Repeated weak topics get the
+      // strongest weight so practice follows actual evidence, not a fixed path.
+      if (!stats || stats.attempted === 0) priority += 55;
+      else {
+        priority += Math.max(0, 100 - Math.round((stats.accuracy || 0) * 100));
+        priority += Math.min(24, stats.attempted * 3);
+      }
+      if (recent.has(String(question.id))) priority -= 70;
+      const difficultyBoost = question.difficulty === "hard" ? 2 : question.difficulty === "medium" ? 1 : 0;
+      priority += difficultyBoost;
+      // Tiny deterministic tie breaker preserves variety after the caller
+      // shuffles rows without making mastery selection hard to test.
+      priority += (index % 7) / 100;
+      return { question, priority };
+    })
+    .sort((a, b) => b.priority - a.priority)
+    .map((item) => item.question);
+}
+
+async function pickAdaptiveRows(childId, subject, rows, wanted) {
+  const topicStats = await db.all(`
+    SELECT q.topic, COUNT(ql.id) AS attempted, COALESCE(SUM(ql.correct), 0) AS correct
+    FROM question_log ql
+    JOIN questions q ON q.id = ql.question_id
+    WHERE ql.child_id = ? AND q.subject_id = ?
+    GROUP BY q.topic
+  `, [childId, subject]);
+
+  const recentRows = await db.all(`
+    SELECT ql.question_id
+    FROM question_log ql
+    JOIN questions q ON q.id = ql.question_id
+    WHERE ql.child_id = ? AND q.subject_id = ?
+    ORDER BY ql.answered_at DESC
+    LIMIT 8
+  `, [childId, subject]);
+
+  // Shuffle before ranking so exact ties rotate naturally between sessions.
+  return rankAdaptiveQuestions(
+    shuffle(rows),
+    topicStats,
+    recentRows.map((row) => row.question_id)
+  ).slice(0, Math.min(wanted, rows.length));
+}
+
 router.get("/", requireAuth("child"), asyncRoute(async (req, res) => {
   const subject = String(req.query.subject || "").trim();
   const wanted = Math.min(10, Math.max(1, Number(req.query.count || 3)));
   const runnerMode = String(req.query.runner || "") === "1";
+  const adaptiveMode = String(req.query.adaptive || "") === "1";
   if (!subject) return res.status(400).json({ error: "subject query param required" });
 
   const child = await db.one("SELECT age_group, language FROM children WHERE id = ?", [req.user.id]);
@@ -39,7 +98,9 @@ router.get("/", requireAuth("child"), asyncRoute(async (req, res) => {
     return res.status(404).json({ error: "No questions available for this subject and age group" });
   }
 
-  const picked = shuffle(rows).slice(0, Math.min(wanted, rows.length));
+  const picked = adaptiveMode
+    ? await pickAdaptiveRows(req.user.id, subject, rows, wanted)
+    : shuffle(rows).slice(0, Math.min(wanted, rows.length));
   const lang = ["en", "hi", "mr"].includes(child.language) ? child.language : "en";
 
   const payload = picked.map((q) => {
@@ -73,7 +134,12 @@ router.get("/", requireAuth("child"), asyncRoute(async (req, res) => {
     };
   });
 
-  res.json({ questions: payload, mode: runnerMode ? "runner" : "standard" });
+  res.json({
+    questions: payload,
+    mode: runnerMode ? "runner" : "standard",
+    selection: adaptiveMode ? "adaptive" : "random",
+  });
 }));
 
 module.exports = router;
+module.exports.rankAdaptiveQuestions = rankAdaptiveQuestions;
