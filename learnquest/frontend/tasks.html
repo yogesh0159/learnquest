@@ -7,6 +7,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/components.css">
+<style>
+  .task-status { display:inline-flex;align-items:center;gap:5px;padding:6px 11px;border-radius:999px;font-size:.78rem;font-weight:800;white-space:nowrap; }
+  .task-status.waiting { background:#fff4db;color:#76520d;border:1px solid #eed49c; }
+  .task-status.approved { background:#e9f7ed;color:#245d38;border:1px solid #c6e6ce; }
+  .task-note { margin-top:8px;font-size:.8rem;line-height:1.35;color:var(--muted); }
+</style>
 </head>
 <body>
   <div class="screen">
@@ -16,6 +22,7 @@
 
     <main class="container mt-24" style="flex:1; max-width:640px; padding-bottom: 60px;">
       <h2 data-i18n="tasks_title">My Tasks</h2>
+      <p class="muted">Finish a real-world or study task, then send it to your parent for approval. Rewards unlock only after they approve it.</p>
       <div id="taskList"></div>
       <p id="emptyMsg" class="muted hidden" data-i18n="tasks_empty">No tasks yet — check back soon!</p>
     </main>
@@ -38,28 +45,35 @@
     tasks.forEach((task) => {
       const row = document.createElement("div");
       row.className = "card-flat mt-24";
-      const rewardLabel = task.reward_type === "coins"
-        ? `🪙 +${task.reward_value}`
-        : `⏱️ +${task.reward_value} min Adventure Mode`;
+      const rewardLabel = `🪙 +${task.reward_value}`;
+      const actionHtml = task.status === "completed"
+        ? `<span class="task-status approved">✅ Parent approved</span>`
+        : task.status === "submitted"
+          ? `<span class="task-status waiting">⏳ Waiting for approval</span>`
+          : `<button class="btn btn-primary btn-sm" data-id="${task.id}">I did it — ask parent</button>`;
       row.innerHTML = `
-        <div class="flex-between">
-          <div>
+        <div class="flex-between" style="gap:16px;align-items:flex-start;">
+          <div style="min-width:0;">
             <div style="font-weight:700; font-family:var(--font-display);">${task.title}</div>
             <div class="muted" style="font-size:0.9rem;">${task.description || ""}</div>
             <div style="margin-top:6px; font-weight:700; color:var(--sunbeam-deep);">${rewardLabel}</div>
+            ${task.status === "submitted" ? `<div class="task-note">Your reward is reserved until your parent confirms the task.</div>` : ""}
           </div>
-          <div>
-            ${task.status === "completed"
-              ? `<span class="badge" style="background:var(--leaf-light); padding:6px 14px; border-radius:999px; font-weight:700;">${t("tasks_completed")}</span>`
-              : `<button class="btn btn-primary btn-sm" data-id="${task.id}">${t("tasks_complete")}</button>`}
-          </div>
+          <div>${actionHtml}</div>
         </div>
       `;
-      if (task.status !== "completed") {
-        row.querySelector("button").onclick = async (e) => {
-          await api.completeTask(task.id);
-          showToast("🎉 +" + task.reward_value + (task.reward_type === "coins" ? " coins!" : " minutes!"));
-          load();
+      const button = row.querySelector("button[data-id]");
+      if (button) {
+        button.onclick = async () => {
+          button.disabled = true;
+          try {
+            await api.completeTask(task.id);
+            showToast("✅ Sent to your parent for approval");
+            await load();
+          } catch (err) {
+            showToast(err.message);
+            button.disabled = false;
+          }
         };
       }
       list.appendChild(row);
