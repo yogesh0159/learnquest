@@ -189,6 +189,69 @@ router.post("/tasks", requireAuth("parent"), asyncRoute(async (req, res) => {
   res.status(201).json({ ok: true, taskId: id });
 }));
 
+router.post("/tasks/:id/review", requireAuth("parent"), asyncRoute(async (req, res) => {
+  const decision = String(req.body?.decision || "").trim().toLowerCase();
+  if (!["approve", "reject"].includes(decision)) {
+    return res.status(400).json({ error: "decision must be approve or reject" });
+  }
+
+  const result = await db.transaction(async (tx) => {
+    const task = await tx.one(
+      "SELECT * FROM parent_tasks WHERE id = ? AND parent_id = ?",
+      [req.params.id, req.user.id]
+    );
+    if (!task) { const err = new Error("Task not found"); err.status = 404; throw err; }
+
+    if (decision === "reject") {
+      if (task.status === "completed") {
+        const err = new Error("Approved tasks cannot be sent back"); err.status = 409; throw err;
+      }
+      if (task.status !== "submitted") {
+        return { ok: true, status: task.status, noChange: true };
+      }
+      await tx.run(
+        "UPDATE parent_tasks SET status = ?, completed_at = NULL WHERE id = ? AND parent_id = ?",
+        ["pending", task.id, req.user.id]
+      );
+      return { ok: true, status: "pending", rewardReleased: false };
+    }
+
+    if (task.status === "completed") {
+      const child = await tx.one("SELECT coins FROM children WHERE id = ?", [task.child_id]);
+      return { ok: true, status: "completed", alreadyApproved: true, newCoins: Number(child?.coins || 0) };
+    }
+    if (task.status !== "submitted") {
+      const err = new Error("The child must submit this task before it can be approved");
+      err.status = 409;
+      throw err;
+    }
+
+    // The status transition and reward happen in the same transaction. Because
+    // only submitted tasks can reach this branch, repeated approval cannot pay twice.
+    await tx.run(
+      "UPDATE parent_tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ? AND parent_id = ?",
+      ["completed", task.id, req.user.id]
+    );
+    if (task.reward_type === "coins") {
+      await tx.run(
+        "UPDATE children SET coins = coins + ? WHERE id = ?",
+        [Math.max(0, Number(task.reward_value || 0)), task.child_id]
+      );
+    }
+    const child = await tx.one("SELECT coins FROM children WHERE id = ?", [task.child_id]);
+    return {
+      ok: true,
+      status: "completed",
+      rewardReleased: true,
+      rewardType: task.reward_type,
+      rewardValue: Number(task.reward_value || 0),
+      newCoins: Number(child?.coins || 0),
+    };
+  });
+
+  res.json(result);
+}));
+
 router.get("/tasks/:childId", requireAuth("parent"), asyncRoute(async (req, res) => {
   if (!(await ownsChild(req.user.id, req.params.childId))) return res.status(403).json({ error: "Not your child profile" });
   const tasks = await db.all(
