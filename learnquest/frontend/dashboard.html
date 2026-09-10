@@ -33,7 +33,7 @@
 
     <main class="container mt-24" style="flex:1; padding-bottom: 60px;">
       <div class="greeting-row">
-        <div class="avatar-circle" id="avatarCircle">🦊</div>
+        <div class="avatar-circle" id="avatarCircle">🧒🏽</div>
         <div>
           <h2 id="greeting" style="margin-bottom:2px;">Hi!</h2>
           <div class="stat-row" id="statRow"></div>
@@ -52,6 +52,7 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/api.js"></script>
+<script src="js/character-presets.js"></script>
 <script>
   requireChildAuth();
 
@@ -62,7 +63,7 @@
   function render() {
     if (!state) return;
     const c = state.child;
-    document.getElementById("avatarCircle").textContent = c.avatar;
+    document.getElementById("avatarCircle").textContent = window.LQCharacters ? LQCharacters.icon(c.avatar) : c.avatar;
     document.getElementById("greeting").textContent = t("dashboard_greeting", { name: c.name });
     document.getElementById("statRow").innerHTML = `
       <div class="stat-pill xp"><span class="icon">⭐</span>${c.xp} ${t("dashboard_xp")}</div>
