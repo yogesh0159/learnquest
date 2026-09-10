@@ -55,6 +55,7 @@ const api = {
   parentDashboard: (childId) => apiRequest(`/parent/dashboard/${childId}`),
   parentAssignTask: (payload) => apiRequest("/parent/tasks", { method: "POST", body: payload }),
   parentTaskList: (childId) => apiRequest(`/parent/tasks/${childId}`),
+  parentReviewTask: (id, decision) => apiRequest(`/parent/tasks/${id}/review`, { method: "POST", body: { decision } }),
 
   myTasks: () => apiRequest("/tasks/mine"),
   completeTask: (id) => apiRequest(`/tasks/${id}/complete`, { method: "POST" }),
