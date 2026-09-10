@@ -18,6 +18,11 @@
   .focus-chip { padding:7px 10px; border-radius:999px; background:#fff4e5; border:1px solid #efd6ae; font-size:.8rem; font-weight:700; }
   .strength-chip { padding:7px 10px; border-radius:999px; background:#ecf8ef; border:1px solid #c7e7cf; font-size:.8rem; font-weight:700; }
   .child-chip { display:flex; align-items:center; gap:7px; }
+  .task-review-actions { display:flex;gap:7px;flex-wrap:wrap;justify-content:flex-end; }
+  .task-state { font-size:.78rem;font-weight:800;padding:5px 9px;border-radius:999px;white-space:nowrap; }
+  .task-state.pending { background:#f1f3f2;color:#59645d; }
+  .task-state.submitted { background:#fff1d7;color:#795312; }
+  .task-state.completed { background:#e8f7ed;color:#245d38; }
   @media (max-width:760px) { .insight-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 </style>
 </head>
@@ -77,7 +82,7 @@
 
         <div class="card mt-24">
           <h3 data-i18n="parent_add_task_title">Assign a Task</h3>
-          <p class="muted" style="margin-top:-6px;">Turn a real-world responsibility or study goal into an in-game reward.</p>
+          <p class="muted" style="margin-top:-6px;">Turn a real-world responsibility or study goal into an in-game reward. The child submits it, then you approve before coins are released.</p>
           <form id="taskForm">
             <div class="field">
               <label data-i18n="parent_task_name">Task Title</label>
@@ -227,6 +232,22 @@
     renderTaskList();
   }
 
+  async function reviewTask(taskId, decision) {
+    const result = await api.parentReviewTask(taskId, decision);
+    if (decision === "approve") {
+      showToast(result.alreadyApproved ? "✅ Already approved" : `✅ Approved · +${result.rewardValue || 0} coins released`);
+    } else {
+      showToast("↩️ Sent back to child");
+    }
+    const [taskRes, freshDashboard] = await Promise.all([
+      api.parentTaskList(selectedChildId),
+      api.parentDashboard(selectedChildId),
+    ]);
+    taskList = taskRes.tasks;
+    dashboardData = freshDashboard;
+    renderDashboard();
+  }
+
   function renderTaskList() {
     const list = document.getElementById("taskList");
     list.innerHTML = "";
@@ -237,13 +258,28 @@
     taskList.forEach((task) => {
       const row = document.createElement("div");
       row.className = "task-row";
+      let actions = `<span class="task-state pending">⏳ In progress</span>`;
+      if (task.status === "submitted") {
+        actions = `<div class="task-review-actions"><button type="button" class="btn btn-primary btn-sm" data-review="approve">Approve +${task.reward_value} 🪙</button><button type="button" class="btn btn-ghost btn-sm" data-review="reject">Send back</button></div>`;
+      } else if (task.status === "completed") {
+        actions = `<span class="task-state completed">✅ Approved</span>`;
+      }
       row.innerHTML = `
         <div>
           <div style="font-weight:700;">${task.title}</div>
           <div class="muted" style="font-size:0.85rem;">${task.description || ""}</div>
+          <div class="muted" style="font-size:.78rem;margin-top:4px;">Reward: 🪙 ${task.reward_value}</div>
         </div>
-        <div>${task.status === "completed" ? "✅" : "⏳"}</div>
+        <div>${actions}</div>
       `;
+      row.querySelectorAll("button[data-review]").forEach((button) => {
+        button.onclick = async () => {
+          const decision = button.dataset.review;
+          row.querySelectorAll("button").forEach((b) => { b.disabled = true; });
+          try { await reviewTask(task.id, decision); }
+          catch (err) { showToast(err.message); row.querySelectorAll("button").forEach((b) => { b.disabled = false; }); }
+        };
+      });
       list.appendChild(row);
     });
   }
