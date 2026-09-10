@@ -26,6 +26,7 @@
   .character-title { display:block; font-family:var(--font-display); font-weight:800; font-size:1.08rem; }
   .character-note { display:block; font-size:.86rem; opacity:.68; margin-top:4px; line-height:1.25; }
   .privacy-note { margin-top:10px; font-size:.82rem; opacity:.68; line-height:1.4; }
+  .preview-row { display:flex; justify-content:center; margin-top:12px; }
   @media (max-width:420px) { .character-grid { gap:10px; } .character-option { padding:15px 8px; } .character-avatar { font-size:3.35rem; } }
 </style>
 </head>
@@ -68,6 +69,7 @@
             <label>Choose your 3D explorer</label>
             <div class="character-grid" id="characterGrid" role="radiogroup" aria-label="Choose boy or girl explorer"></div>
             <input type="hidden" id="pAvatar" value="human_boy_v1">
+            <div class="preview-row"><a id="previewCharacterBtn" class="btn btn-ghost btn-sm" href="character-lab.html?character=human_boy_v1" target="_blank" rel="noopener">🎮 Preview explorer in 3D</a></div>
             <div class="privacy-note">These are designed game characters, not uploaded photos of a real child. The 3D runner will use this choice when the RealWorld character pack is active.</div>
           </div>
           <div class="field">
@@ -99,6 +101,11 @@
 
   const grid = document.getElementById("characterGrid");
   const avatarInput = document.getElementById("pAvatar");
+  const previewCharacterBtn = document.getElementById("previewCharacterBtn");
+
+  function syncPreviewLink() {
+    previewCharacterBtn.href = `character-lab.html?character=${encodeURIComponent(avatarInput.value)}`;
+  }
 
   function renderCharacters() {
     grid.innerHTML = "";
@@ -122,9 +129,11 @@
         button.classList.add("selected");
         button.setAttribute("aria-checked", "true");
         avatarInput.value = preset.id;
+        syncPreviewLink();
       };
       grid.appendChild(button);
     });
+    syncPreviewLink();
   }
 
   renderCharacters();
