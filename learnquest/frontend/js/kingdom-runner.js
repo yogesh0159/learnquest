@@ -1,3 +1,5 @@
+import { CharacterController } from "./game/character-controller.js";
+
 const THREE_URLS = [
   "/vendor/three/three.module.js",
   "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
@@ -124,6 +126,9 @@ class KingdomRunner {
     this.camera = null;
     this.player = null;
     this.playerParts = {};
+    this.characterController = null;
+    this.characterStateTimer = 0;
+    this.wasAirborne = false;
     this.pet = null;
     this.dragon = null;
     this.roadTiles = [];
@@ -221,6 +226,7 @@ class KingdomRunner {
     this.bindControls();
     this.onResize();
     window.addEventListener("resize", () => this.onResize(), { passive: true });
+    window.addEventListener("pagehide", () => this.dispose(), { once: true });
     requestAnimationFrame(this.boundFrame);
   }
 
@@ -374,6 +380,19 @@ class KingdomRunner {
   }
 
   buildPlayer() {
+    const preset = window.LQCharacters?.get(this.child.avatar);
+    if (preset) {
+      this.characterController = new CharacterController({ scene: this.scene, preset });
+      this.player = this.characterController.root;
+      this.player.position.set(this.playerX, 0, PLAYER_Z);
+      this.characterController.load().then(() => {
+        this.characterController?.setState(this.running ? "run" : "idle", { immediate: true });
+      });
+      this.buildHumanRewardVisuals();
+      if (["reward_pet_parrot","reward_baby_dragon"].includes(this.equipped.pet?.reward_id)) this.buildParrot();
+      if (this.shieldCharges > 0) this.createShieldVisual();
+      return;
+    }
     const T = this.T;
     const root = new T.Group();
     root.position.set(this.playerX,0,PLAYER_Z);
@@ -427,6 +446,26 @@ class KingdomRunner {
     }
     if (["reward_pet_parrot","reward_baby_dragon"].includes(this.equipped.pet?.reward_id)) this.buildParrot();
     if (this.shieldCharges>0) this.createShieldVisual();
+  }
+
+  buildHumanRewardVisuals() {
+    const T=this.T,root=this.player;
+    if (["reward_jungle_cape","reward_royal_cape"].includes(this.equipped.outfit?.reward_id)) {
+      const royal=this.equipped.outfit.reward_id==="reward_royal_cape";
+      const cape=new T.Mesh(new T.PlaneGeometry(1,1.25),new T.MeshStandardMaterial({color:royal?0x673b91:0x8b2f3c,side:T.DoubleSide,roughness:.8}));
+      cape.position.set(0,1.7,-.48);cape.rotation.x=-.12;root.add(cape);this.playerParts.cape=cape;
+    }
+    if (["reward_wooden_sword","reward_crystal_sword"].includes(this.equipped.weapon?.reward_id)) {
+      const crystal=this.equipped.weapon.reward_id==="reward_crystal_sword",sword=new T.Group();
+      const blade=new T.Mesh(new T.BoxGeometry(.12,1,.12),crystal?new T.MeshStandardMaterial({color:0x91dfff,emissive:0x3f9fc4,emissiveIntensity:.45,metalness:.55,roughness:.22}):this.mat(0x9b6b3f,.8));blade.position.y=.5;sword.add(blade);
+      sword.add(new T.Mesh(new T.BoxGeometry(.48,.1,.12),this.mat(crystal?0xe4b84e:0x5d3b22,.85)));
+      sword.position.set(.72,1.25,-.12);sword.rotation.z=-.35;root.add(sword);this.playerParts.sword=sword;
+    }
+    if (this.equipped.character?.reward_id==="reward_forest_fox") {
+      const foxMat=this.mat(0xd87835,.8);
+      [-.31,.31].forEach(x=>{const ear=new T.Mesh(new T.ConeGeometry(.18,.46,5),foxMat);ear.position.set(x,3.05,-.02);ear.rotation.z=x<0?.16:-.16;root.add(ear);});
+      const tail=new T.Mesh(new T.ConeGeometry(.22,1,8),foxMat);tail.position.set(-.48,1.25,-.45);tail.rotation.set(.25,0,1.05);root.add(tail);this.playerParts.tail=tail;
+    }
   }
 
   buildParrot() {
@@ -523,15 +562,19 @@ class KingdomRunner {
   moveLane(dir) {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
     this.targetLane=Math.max(0,Math.min(2,this.targetLane+dir));
+    if (this.characterController) {
+      this.characterController.setState(dir < 0 ? "dodgeLeft" : "dodgeRight");
+      this.characterStateTimer=.24;
+    }
     this.highlightQuestionLane();
   }
   jump() {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
-    if(this.jumpY<=.03&&!this.sliding){this.jumpVelocity=8.6;this.audio.jump();}
+    if(this.jumpY<=.03&&!this.sliding){this.jumpVelocity=8.6;this.audio.jump();this.characterController?.setState("jump");}
   }
   slide() {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
-    if(this.jumpY<.2){this.sliding=true;this.slideTimer=.72;this.audio.slide();}
+    if(this.jumpY<.2){this.sliding=true;this.slideTimer=.72;this.audio.slide();this.characterController?.setState("slide");}
   }
 
   frame() {
@@ -555,7 +598,7 @@ class KingdomRunner {
     this.player.position.x=this.playerX;
     if(this.jumpY>0||this.jumpVelocity>0){this.jumpVelocity-=24*dt;this.jumpY+=this.jumpVelocity*dt;if(this.jumpY<=0){this.jumpY=0;this.jumpVelocity=0;}}
     this.player.position.y=this.jumpY;
-    if(this.sliding){this.slideTimer-=dt;if(this.slideTimer<=0){this.sliding=false;this.player.scale.y=1;}else this.player.scale.y=.58;}
+    if(this.sliding){this.slideTimer-=dt;if(this.slideTimer<=0){this.sliding=false;if(!this.characterController)this.player.scale.y=1;}else if(!this.characterController)this.player.scale.y=.58;}
 
     this.moveRoad(dt);
     this.spawnGameplay();
@@ -571,9 +614,20 @@ class KingdomRunner {
     if(this.player){
       const runAmp=this.running&&!this.paused&&!this.ended?Math.min(1,this.speed/14):.15;
       const phase=t*(8+this.speed*.22);
-      if(!this.sliding){
+      if(!this.sliding&&!this.characterController){
         this.playerParts.leftArm.rotation.x=Math.sin(phase)*.7*runAmp; this.playerParts.rightArm.rotation.x=-Math.sin(phase)*.7*runAmp;
         this.playerParts.leftLeg.rotation.x=-Math.sin(phase)*.72*runAmp; this.playerParts.rightLeg.rotation.x=Math.sin(phase)*.72*runAmp;
+      }
+      if(this.characterController){
+        const airborne=this.jumpY>.03||this.jumpVelocity>0;
+        if(this.wasAirborne&&!airborne){this.characterController.setState("land");this.characterStateTimer=.18;}
+        this.wasAirborne=airborne;
+        this.characterStateTimer=Math.max(0,this.characterStateTimer-dt);
+        if(this.characterStateTimer===0){
+          const state=this.ended?this.characterController.state:this.sliding?"slide":airborne?"jump":this.running&&!this.paused?(this.speed>this.config.baseSpeed*1.3?"sprint":"run"):"idle";
+          this.characterController.setState(state);
+        }
+        this.characterController.update(dt,{speed:this.speed/this.config.baseSpeed,lateral:LANES[this.targetLane]-this.playerX,airborne,sliding:this.sliding});
       }
       this.player.rotation.z=(LANES[this.targetLane]-this.playerX)*-.055;
       this.camera.position.x += (this.playerX*.12-this.camera.position.x)*Math.min(1,dt*4);
@@ -837,7 +891,8 @@ class KingdomRunner {
   crash(kind) {
     if(this.ended||this.invulnerableTimer>0)return;
     if(this.shieldCharges>0){this.consumeShield("You hit an obstacle, but the shield broke instead.");return;}
-    this.ended=true;this.running=false;this.audio.hit();this.player.rotation.z=.65;
+    this.ended=true;this.running=false;this.audio.hit();
+    if(this.characterController)this.characterController.setState("hit");else this.player.rotation.z=.65;
     const names={jump:"You needed to JUMP over the royal barrel.",slide:"You needed to SLIDE under the portcullis.",lane:"You needed to change lane around the knight shield.",pit:"You needed to JUMP over the broken drawbridge.",swing:"You needed to dodge the swinging mace.","wrong-answer":"The maths answer lane was incorrect."};
     setTimeout(()=>this.showCrashResult(names[kind]||"The kingdom challenge caught you. Keep your focus and try again!"),450);
     if(this.runId)api.runnerCrash({ runId: this.runId, ...this.statsPayload() }).catch(()=>{});
@@ -853,7 +908,7 @@ class KingdomRunner {
     try {
       const result=await api.runnerComplete({runId:this.runId,...this.statsPayload()});
       this.ended=true;this.running=false;this.answerPending=false;
-      if(result.passed){this.audio.win();this.showWinResult(result);}else this.showServerFail(result);
+      if(result.passed){this.audio.win();this.characterController?.setState("victory");this.showWinResult(result);}else this.showServerFail(result);
     } catch(e){this.answerPending=false;this.showFeedback("⚠️","Could not save run",e.message,false,1500);}
   }
 
@@ -925,6 +980,13 @@ class KingdomRunner {
 
   disposeGroup(group) {
     group.traverse?.(obj=>{if(obj.geometry)obj.geometry.dispose?.();if(obj.material){const mats=Array.isArray(obj.material)?obj.material:[obj.material];mats.forEach(m=>{m.map?.dispose?.();m.dispose?.();});}});
+  }
+
+  dispose() {
+    this.characterController?.dispose();
+    this.characterController=null;
+    this.renderer?.dispose?.();
+    this.resizeObserver?.disconnect?.();
   }
 
   escapeHtml(value) { return String(value??"").replace(/[&<>'"]/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[ch])); }
