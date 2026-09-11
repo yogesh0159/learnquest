@@ -45,6 +45,10 @@ export class InputController {
 
     this.listen(this.eventTarget, "keydown", (event) => {
       if (event.repeat) return;
+      if (["Enter", " "].includes(event.key) && this.actions.ready?.()) {
+        event.preventDefault();
+        return;
+      }
       if (["ArrowLeft", "a", "A"].includes(event.key)) this.actions.moveLane(-1);
       else if (["ArrowRight", "d", "D"].includes(event.key)) this.actions.moveLane(1);
       else if (["ArrowUp", "w", "W", " "].includes(event.key)) {

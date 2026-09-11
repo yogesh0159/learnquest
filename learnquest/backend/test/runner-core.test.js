@@ -83,6 +83,54 @@ test('game loop default frame APIs retain the browser global receiver', async ()
   }
 });
 
+test('learning focus uses age-appropriate minimum think times', async () => {
+  const { thinkTimeSeconds } = await importCore('learning-focus');
+  assert.equal(thinkTimeSeconds('4-6'), 8);
+  assert.equal(thinkTimeSeconds('7-9'), 6);
+  assert.equal(thinkTimeSeconds('10-12'), 5);
+});
+
+test('learning focus freezes forward updates, permits lane choice, and resumes without submitting', async () => {
+  const { LearningFocus } = await importCore('learning-focus');
+  let distance = 10;
+  let score = 20;
+  let lane = 1;
+  let answersSubmitted = 0;
+  let resumed = 0;
+  const focus = new LearningFocus({ ageGroup: '7-9', onReady: () => { resumed++; } });
+  const update = (seconds) => {
+    if (focus.active) { focus.tick(seconds); return; }
+    distance += 12 * seconds;
+    score += 9 * seconds;
+  };
+
+  focus.start();
+  lane = 2; // Lane input remains independent of forward simulation.
+  update(2);
+  assert.deepEqual({ distance, score, lane }, { distance: 10, score: 20, lane: 2 });
+  assert.equal(focus.ready(), true);
+  assert.equal(answersSubmitted, 0);
+  assert.equal(resumed, 1);
+  update(1);
+  assert.deepEqual({ distance, score }, { distance: 22, score: 29 });
+});
+
+test('learning focus countdown resumes automatically and is wired into both runners', async () => {
+  const fs = require('node:fs');
+  const { LearningFocus } = await importCore('learning-focus');
+  const focus = new LearningFocus({ ageGroup: '10-12' });
+  focus.start();
+  focus.tick(5);
+  assert.equal(focus.active, false);
+
+  for (const runner of ['jungle-runner.js', 'kingdom-runner.js']) {
+    const source = fs.readFileSync(path.resolve(__dirname, `../../frontend/js/${runner}`), 'utf8');
+    assert.match(source, /new LearningFocus/);
+    assert.match(source, /if \(this\.learningFocus\.active\)/);
+    assert.match(source, /this\.learningFocus\.start\(\)/);
+  }
+});
+
 test('asset loader tries locations in order and returns the first success', async () => {
   const { loadModuleWithFallback } = await importCore('asset-manager');
   const attempted = [];
