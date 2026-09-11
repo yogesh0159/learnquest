@@ -10,9 +10,10 @@ export class GameLoop {
     this.active = false;
     this.tick = () => {
       if (!this.active) return;
-      const delta = Math.min(.035, this.clock.getDelta());
-      this.update(delta);
-      this.render(delta);
+      const rawDelta = this.clock.getDelta();
+      const delta = Math.min(.035, rawDelta);
+      this.update(delta, rawDelta);
+      this.render(delta, rawDelta);
       this.frameId = this.requestFrame(this.tick);
     };
   }

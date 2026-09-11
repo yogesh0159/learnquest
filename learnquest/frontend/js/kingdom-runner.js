@@ -2,7 +2,7 @@ import { CharacterController } from "./game/character-controller.js";
 import { InputController } from "./game/core/input-controller.js";
 import { classifyRunnerCollision, closestLaneIndex } from "./game/core/collision-system.js";
 import { loadThreeEngine } from "./game/core/asset-manager.js";
-import { disposeObject3D, resizeRunnerView, runnerQualityProfile } from "./game/core/performance-manager.js";
+import { disposeObject3D, resizeRunnerView, runnerQualityProfile, hintedQualityTier, RuntimeQualityManager } from "./game/core/performance-manager.js";
 import { GameLoop } from "./game/core/game-loop.js";
 import { equippedRewardsBySlot, initialRewardState } from "./game/core/reward-system.js";
 
@@ -131,6 +131,10 @@ class KingdomRunner {
     this.entities = [];
     this.particles = [];
     this.runId = null;
+    this.runToken = null;
+    this.runEventSequence = 0;
+    this.runEventQueue = Promise.resolve();
+    this.runIntegrityError = null;
     this.running = false;
     this.paused = false;
     this.ended = false;
@@ -173,7 +177,7 @@ class KingdomRunner {
     this.inputController = null;
     this.gameLoop = new GameLoop({
       clock: this.clock,
-      update: (dt) => { if(this.running&&!this.paused&&!this.ended&&!this.answerPending)this.update(dt); },
+      update: (dt, rawDt) => { this.qualityManager?.recordFrame(rawDt * 1000);if(this.running&&!this.paused&&!this.ended&&!this.answerPending)this.update(dt); },
       render: (dt) => { this.animateVisuals(dt);this.renderer.render(this.scene,this.camera); },
     });
     this.equipped = equippedRewardsBySlot(state.equippedRewards);
@@ -191,6 +195,7 @@ class KingdomRunner {
   initRenderer() {
     const T = this.T;
     const quality = runnerQualityProfile();
+    this.qualityManager = new RuntimeQualityManager({ initialTier: hintedQualityTier(), onChange: (profile) => this.applyQualityProfile(profile) });
     this.renderer = new T.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     this.renderer.setPixelRatio(quality.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -211,6 +216,7 @@ class KingdomRunner {
     const sun = new T.DirectionalLight(0xfff0c7, 3.0);
     sun.position.set(-12, 20, 8);
     sun.castShadow = true;
+    this.sunLight = sun;
     sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
     sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
     sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -10;
@@ -226,6 +232,13 @@ class KingdomRunner {
     window.addEventListener("resize", () => this.onResize(), { passive: true });
     window.addEventListener("pagehide", () => this.dispose(), { once: true });
     this.gameLoop.start();
+  }
+
+  applyQualityProfile(profile) {
+    if (!this.renderer) return;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, profile.pixelRatioCap));
+    this.renderer.shadowMap.enabled = profile.shadows;
+    if (this.sunLight) this.sunLight.castShadow = profile.shadows;
   }
 
   mat(color, roughness = .78, metalness = .03) {
@@ -535,7 +548,7 @@ class KingdomRunner {
     ui.startBtn.disabled=true; ui.startBtn.textContent="Starting…";
     try {
       const start=await api.runnerStart({levelId:this.level.id});
-      this.runId=start.runId; this.startedAt=Date.now(); this.running=true; this.paused=false;
+      this.runId=start.runId; this.runToken=start.runToken; this.startedAt=Date.now(); this.running=true; this.paused=false;
       ui.startOverlay.classList.add("hidden"); ui.pause.disabled=false;
       this.audio.tone(430,.15,"triangle",.04,120);
     } catch(e) {
@@ -660,7 +673,7 @@ class KingdomRunner {
       if(e.kind==="swing")e.group.position.x=LANES[e.lane]+Math.sin(performance.now()*.003+e.phase)*1.1;
       this.checkEntity(e);
       if(e.group.position.z>12){
-        if(e.category==="obstacle"&&!e.hit&&!e.counted){this.obstaclesDodged++;this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);this.score+=45+this.combo*3;e.counted=true;this.showCombo();}
+        if(e.category==="obstacle"&&!e.hit&&!e.counted){this.obstaclesDodged++;this.recordRunEvent("obstacle");this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);this.score+=45+this.combo*3;e.counted=true;this.showCombo();}
         this.scene.remove(e.group);this.disposeGroup(e.group);this.entities.splice(i,1);
       }
     }
@@ -677,8 +690,8 @@ class KingdomRunner {
   }
 
   collect(e) {
-    if(e.type==="coin"){this.coins++;this.score+=25*(this.doubleScoreTimer>0?2:1);this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);this.audio.coin();}
-    else if(e.type==="key"){this.keys++;this.score+=180;this.combo+=2;this.maxCombo=Math.max(this.maxCombo,this.combo);this.audio.key();this.showFeedback("🔶","Royal Seal!",`${this.keys}/${this.config.keyTarget} royal seals collected.`,true,650);}
+    if(e.type==="coin"){this.coins++;this.recordRunEvent("coin");this.score+=25*(this.doubleScoreTimer>0?2:1);this.combo++;this.maxCombo=Math.max(this.maxCombo,this.combo);this.audio.coin();}
+    else if(e.type==="key"){this.keys++;this.recordRunEvent("key");this.score+=180;this.combo+=2;this.maxCombo=Math.max(this.maxCombo,this.combo);this.audio.key();this.showFeedback("🔶","Royal Seal!",`${this.keys}/${this.config.keyTarget} royal seals collected.`,true,650);}
     else if(e.type==="shield"){this.shieldCharges++;this.createShieldVisual();this.audio.shield();this.showFeedback("🛡️","Shield Ready","One crash can be blocked.",true,850);}
     else if(e.type==="magnet"){this.magnetTimer=9;this.showFeedback("🧲","Coin Magnet","Nearby coins fly to you for 9 seconds.",true,850);}
     else if(e.type==="double"){this.doubleScoreTimer=9;this.showFeedback("⚡","Focus Boost","Double score for 9 seconds.",true,850);}
@@ -812,7 +825,7 @@ class KingdomRunner {
     const chosenLane=this.closestLane();const gate=this.entities.find(e=>e.category==="gate"&&e.lane===chosenLane&&!e.done);
     if(!gate){this.answerPending=false;return;}
     try {
-      const result=await api.runnerAnswer({runId:this.runId,questionId:this.activeQuestion.id,selectedIndex:gate.originalIndex});
+      const result=await api.runnerAnswer({runId:this.runId,runToken:this.runToken,questionId:this.activeQuestion.id,selectedIndex:gate.originalIndex});
       this.answersAttempted++;
       if(result.correct){
         this.correctAnswers++;this.combo+=3;this.maxCombo=Math.max(this.maxCombo,this.combo);this.score+=250+this.combo*12;this.audio.correct();
@@ -869,21 +882,34 @@ class KingdomRunner {
     if(this.characterController)this.characterController.setState("hit");else this.player.rotation.z=.65;
     const names={jump:"You needed to JUMP over the royal barrel.",slide:"You needed to SLIDE under the portcullis.",lane:"You needed to change lane around the knight shield.",pit:"You needed to JUMP over the broken drawbridge.",swing:"You needed to dodge the swinging mace.","wrong-answer":"The maths answer lane was incorrect."};
     setTimeout(()=>this.showCrashResult(names[kind]||"The kingdom challenge caught you. Keep your focus and try again!"),450);
-    if(this.runId)api.runnerCrash({ runId: this.runId, ...this.statsPayload() }).catch(()=>{});
+    if(this.runId)api.runnerCrash({ runId: this.runId, runToken: this.runToken, ...this.statsPayload() }).catch(()=>{});
   }
 
   async finishRun() {
     if(this.ended||this.answerPending)return;this.answerPending=true;
     if(this.keys<this.config.keyTarget){
       this.ended=true;this.running=false;this.answerPending=false;
-      await api.runnerCrash({ runId: this.runId, ...this.statsPayload() }).catch(()=>{});
+      await api.runnerCrash({ runId: this.runId, runToken: this.runToken, ...this.statsPayload() }).catch(()=>{});
       this.showMissionFail();return;
     }
     try {
-      const result=await api.runnerComplete({runId:this.runId,...this.statsPayload()});
+      const result=await this.flushRunEvents().then(()=>api.runnerComplete({runId:this.runId,runToken:this.runToken,...this.statsPayload()}));
       this.ended=true;this.running=false;this.answerPending=false;
       if(result.passed){this.audio.win();this.characterController?.setState("victory");this.showWinResult(result);}else this.showServerFail(result);
     } catch(e){this.answerPending=false;this.showFeedback("⚠️","Could not save run",e.message,false,1500);}
+  }
+
+  recordRunEvent(type) {
+    if (!this.runId || this.runIntegrityError) return;
+    const sequence = ++this.runEventSequence;
+    this.runEventQueue = this.runEventQueue
+      .then(() => api.runnerEvent({ runId: this.runId, runToken: this.runToken, sequence, type, amount: 1 }))
+      .catch((error) => { this.runIntegrityError = error; });
+  }
+
+  async flushRunEvents() {
+    await this.runEventQueue;
+    if (this.runIntegrityError) throw new Error("Run verification was interrupted. Please retry this level.");
   }
 
   statsPayload() {

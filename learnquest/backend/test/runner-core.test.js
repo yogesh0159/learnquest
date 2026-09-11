@@ -59,3 +59,17 @@ test('asset loader tries locations in order and returns the first success', asyn
   assert.deepEqual(attempted, ['local', 'fallback']);
   assert.deepEqual(loaded, { source: 'fallback' });
 });
+
+test('runtime quality uses measured frame time and preserves a low-power tier', async () => {
+  const { RuntimeQualityManager, runnerQualityProfile } = await importCore('performance-manager');
+  const changes = [];
+  const manager = new RuntimeQualityManager({ initialTier: 'high', sampleSize: 3, onChange: (profile) => changes.push(profile.tier) });
+  [35, 38, 34].forEach((ms) => manager.recordFrame(ms));
+  assert.equal(manager.tier, 'balanced');
+  // Cooldown prevents oscillation; repeated slow sample windows eventually
+  // choose the playable no-shadow fallback based on measurements.
+  for (let window = 0; window < 3; window++) [40, 42, 38].forEach((ms) => manager.recordFrame(ms));
+  assert.equal(manager.tier, 'low');
+  assert.equal(runnerQualityProfile({ innerWidth: 400, devicePixelRatio: 3 }, { hardwareConcurrency: 2 }, manager.tier).shadows, false);
+  assert.deepEqual(changes, ['balanced', 'low']);
+});
