@@ -4,6 +4,7 @@ import { classifyRunnerCollision, closestLaneIndex } from "./game/core/collision
 import { loadThreeEngine } from "./game/core/asset-manager.js";
 import { disposeObject3D, resizeRunnerView, runnerQualityProfile, hintedQualityTier, RuntimeQualityManager } from "./game/core/performance-manager.js";
 import { GameLoop } from "./game/core/game-loop.js";
+import { LearningFocus } from "./game/core/learning-focus.js";
 import { equippedRewardsBySlot, initialRewardState } from "./game/core/reward-system.js";
 
 const $ = (id) => document.getElementById(id);
@@ -16,6 +17,7 @@ const ui = {
   questionOptions: $("questionOptions"), feedback: $("feedbackFlash"), feedbackIcon: $("feedbackIcon"), feedbackTitle: $("feedbackTitle"),
   feedbackText: $("feedbackText"), combo: $("comboToast"), sound: $("soundBtn"), pause: $("pauseBtn"),
   left: $("leftBtn"), right: $("rightBtn"), jump: $("jumpBtn"), slide: $("slideBtn"),
+  thinkTimeStatus: $("thinkTimeStatus"), ready: $("readyBtn"),
 };
 
 requireChildAuth();
@@ -175,6 +177,14 @@ class JungleRunner {
     this.lastTime = performance.now();
     this.resizeObserver = null;
     this.inputController = null;
+    this.learningFocus = new LearningFocus({
+      ageGroup: this.child.age_group,
+      onChange: (seconds, active) => {
+        ui.thinkTimeStatus.textContent = active ? `🧠 Read & think — ${seconds}s` : "Choose your lane!";
+        ui.ready.disabled = !active;
+        ui.ready.hidden = !active;
+      },
+    });
     this.gameLoop = new GameLoop({
       clock: this.clock,
       update: (dt, rawDt) => { this.qualityManager?.recordFrame(rawDt * 1000);if(this.running&&!this.paused&&!this.ended&&!this.answerPending)this.update(dt); },
@@ -531,6 +541,7 @@ class JungleRunner {
         moveLane: (direction) => this.moveLane(direction),
         jump: () => this.jump(),
         slide: () => this.slide(),
+        ready: () => this.learningFocus.ready(),
         togglePause: () => { if (this.running && !this.ended) this.togglePause(); },
         pauseWhenHidden: () => {
           if(this.running&&!this.ended&&!this.paused){
@@ -541,6 +552,7 @@ class JungleRunner {
     });
     this.inputController.bind();
     ui.pause.onclick=()=>this.togglePause(); ui.resumeBtn.onclick=()=>this.togglePause(false);
+    ui.ready.onclick=()=>this.learningFocus.ready();
     ui.sound.onclick=()=>{this.audio.muted=!this.audio.muted;ui.sound.textContent=this.audio.muted?"🔇":"🔊";};
   }
 
@@ -576,15 +588,22 @@ class JungleRunner {
     this.highlightQuestionLane();
   }
   jump() {
-    if(!this.running||this.paused||this.ended||this.answerPending)return;
+    if(!this.running||this.paused||this.ended||this.answerPending||this.learningFocus.active)return;
     if(this.jumpY<=.03&&!this.sliding){this.jumpVelocity=8.6;this.audio.jump();this.characterController?.setState("jump");}
   }
   slide() {
-    if(!this.running||this.paused||this.ended||this.answerPending)return;
+    if(!this.running||this.paused||this.ended||this.answerPending||this.learningFocus.active)return;
     if(this.jumpY<.2){this.sliding=true;this.slideTimer=.72;this.audio.slide();this.characterController?.setState("slide");}
   }
 
   update(dt) {
+    if (this.learningFocus.active) {
+      this.learningFocus.tick(dt);
+      this.playerX += (LANES[this.targetLane]-this.playerX)*Math.min(1,dt*13);
+      this.player.position.x=this.playerX;
+      this.highlightQuestionLane();
+      return;
+    }
     const progress=Math.min(1,this.distance/this.config.length);
     const boostMul=this.boostTimer>0?1.22:1;
     this.speed=Math.min(this.config.maxSpeed*boostMul,(this.config.baseSpeed*(1+progress*.42)+this.combo*.025)*boostMul);
@@ -771,17 +790,22 @@ class JungleRunner {
 
   spawnQuestionGate(question) {
     this.activeQuestion=question;this.questionGateResolved=false;this.combo=0;
-    // Keep the knowledge section readable: clear hazards that are still far ahead, but preserve any obstacle already close to the player.
-    for (const e of this.entities) { if (e.category === "obstacle" && e.group.position.z < -12) { e.done=true; e.group.position.z=999; } }
+    // Give every lane a fair, hazard-free approach into the learning checkpoint.
+    for (let i=this.entities.length-1;i>=0;i--) {
+      const e=this.entities[i];
+      if(e.category!=="obstacle")continue;
+      this.scene.remove(e.group);this.disposeGroup(e.group);this.entities.splice(i,1);
+    }
     ui.questionTopic.textContent=`🧠 ${question.topic || "Knowledge Gate"}`;
     ui.questionText.textContent=question.question;
     ui.questionOptions.innerHTML="";
     const labels=["LEFT","CENTER","RIGHT"];
     question.options.slice(0,3).forEach((opt,i)=>{
-      const div=document.createElement("div");div.className="question-option";div.dataset.lane=String(i);div.innerHTML=`<b>${labels[i]}</b><span>${this.escapeHtml(opt.text)}</span>`;ui.questionOptions.appendChild(div);
+      const div=document.createElement("button");div.type="button";div.className="question-option";div.dataset.lane=String(i);div.setAttribute("aria-label",`${labels[i]}: ${opt.text}`);div.innerHTML=`<b>${labels[i]}</b><span>${this.escapeHtml(opt.text)}</span>`;div.onclick=()=>this.selectLane(i);ui.questionOptions.appendChild(div);
       this.spawnAnswerGate(i,opt.text,opt.originalIndex);
     });
     ui.questionPanel.classList.add("show");
+    this.learningFocus.start();
     this.highlightQuestionLane();
     this.nextObstacleAt=Math.max(this.nextObstacleAt,this.distance+38);
   }
@@ -841,6 +865,12 @@ class JungleRunner {
 
   clearGates() {
     for(const e of this.entities.filter(x=>x.category==="gate")){e.done=true;e.group.position.z=999;}
+  }
+
+  selectLane(lane) {
+    if(!this.running||this.paused||this.ended||this.answerPending)return;
+    this.targetLane=Math.max(0,Math.min(2,lane));
+    this.highlightQuestionLane();
   }
 
   highlightQuestionLane() {
