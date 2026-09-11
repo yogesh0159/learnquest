@@ -16,6 +16,7 @@ const gameRoutes = require("./routes/game");
 const rewardRoutes = require("./routes/rewards");
 const parentRoutes = require("./routes/parent");
 const taskRoutes = require("./routes/tasks");
+const missionRoutes = require("./routes/missions");
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -25,19 +26,20 @@ const frontendDir = path.join(__dirname, "..", "frontend");
 // Railway (and most PaaS) sit behind a reverse proxy — trust the first hop so
 // req.ip / rate-limiting see the real client IP instead of the proxy's.
 app.set("trust proxy", 1);
-
 app.disable("x-powered-by");
 
-// Security headers. The frontend still uses inline <script> blocks on
-// several pages, so script-src/style-src allow 'unsafe-inline' for now
-// rather than breaking the app — tightening this further (nonces/hashes)
-// is a good follow-up once inline scripts are extracted to files.
+// Security headers. Several legacy pages still contain inline script/style
+// blocks, so unsafe-inline remains temporarily. unsafe-eval is not required by
+// LearnQuest/Three.js and is deliberately excluded.
 app.use(
   helmet({
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
+        baseUri: ["'self'"],
+        formAction: ["'self'"],
+        frameAncestors: ["'none'"],
+        scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
         styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
         imgSrc: ["'self'", "data:", "blob:"],
         connectSrc: ["'self'", "https://cdn.jsdelivr.net", "https://unpkg.com"],
@@ -49,32 +51,54 @@ app.use(
     crossOriginEmbedderPolicy: false,
   })
 );
+app.use((req, res, next) => {
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
+  if (req.path.startsWith("/api/")) res.setHeader("Cache-Control", "no-store");
+  next();
+});
 
-// CORS: same-origin by default (frontend is served by this same Express app).
-// Set ALLOWED_ORIGINS (comma-separated) if the frontend is ever hosted
-// separately from the API.
+// CORS policy:
+// - Development: permissive for local tooling.
+// - Production + no ALLOWED_ORIGINS: no cross-origin headers (true same-origin default).
+// - Production + ALLOWED_ORIGINS: only explicitly listed origins receive CORS access.
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
   .map((o) => o.trim())
   .filter(Boolean);
 
-app.use(
-  cors({
+let corsOptions;
+if (!isProd) {
+  corsOptions = { origin: true };
+} else if (allowedOrigins.length === 0) {
+  corsOptions = { origin: false };
+} else {
+  corsOptions = {
     origin(origin, callback) {
-      if (!origin) return callback(null, true); // same-origin / server-to-server / curl
-      if (!isProd || allowedOrigins.length === 0) return callback(null, true);
-      if (allowedOrigins.includes(origin)) return callback(null, true);
-      return callback(new Error("Not allowed by CORS"));
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+      const err = new Error("Not allowed by CORS");
+      err.status = 403;
+      return callback(err);
     },
-  })
-);
+  };
+}
+app.use(cors(corsOptions));
 
 app.use(compression());
 app.use(express.json({ limit: "256kb" }));
 app.use("/api", apiLimiter);
 
-// Serve the installed Three.js module locally so the 3D runner does not depend on a public CDN.
-app.use("/vendor/three", express.static(path.join(__dirname, "node_modules", "three", "build"), { maxAge: "7d", immutable: true }));
+// Keep the game engine self-hosted so core gameplay does not depend on a CDN.
+app.use(
+  "/vendor/three",
+  express.static(path.join(__dirname, "node_modules", "three", "build"), { maxAge: "7d", immutable: true })
+);
+// Three.js official add-ons (GLTFLoader, DRACOLoader, etc.) are exposed locally
+// for the RealWorld asset pipeline. Browser import maps resolve their bare
+// `three` imports back to the local build above.
+app.use(
+  "/vendor/three-addons",
+  express.static(path.join(__dirname, "node_modules", "three", "examples", "jsm"), { maxAge: "7d", immutable: true })
+);
 
 // Static frontend: long-lived cache for versioned/library assets, short/no
 // cache for HTML so deploys are picked up immediately by returning clients.
@@ -83,6 +107,10 @@ app.use(
     setHeaders(res, filePath) {
       if (filePath.endsWith(".html")) {
         res.setHeader("Cache-Control", "no-cache");
+      } else if (/\.(?:js|mjs|css|json)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
+      } else if (/\.(glb|gltf|bin|ktx2|webp|png|jpe?g|woff2?)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "public, max-age=604800, immutable");
       } else {
         res.setHeader("Cache-Control", "public, max-age=86400");
       }
@@ -105,6 +133,7 @@ app.use("/api/game", gameRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/parent", parentRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/missions", missionRoutes);
 
 app.get("/api/health", async (req, res) => {
   const startedAt = Date.now();
@@ -117,7 +146,6 @@ app.get("/api/health", async (req, res) => {
 });
 
 app.get("/", (req, res) => res.sendFile(path.join(frontendDir, "index.html")));
-
 app.use("/api", (req, res) => res.status(404).json({ error: "API route not found" }));
 
 app.use((err, req, res, next) => {

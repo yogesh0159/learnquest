@@ -151,6 +151,13 @@ CREATE TABLE IF NOT EXISTS game_runs (
   child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
   level_id TEXT NOT NULL REFERENCES game_levels(id) ON DELETE CASCADE,
   status TEXT NOT NULL DEFAULT 'active',
+  integrity_token_hash TEXT NOT NULL,
+  event_sequence INTEGER NOT NULL DEFAULT 0,
+  verified_coins INTEGER NOT NULL DEFAULT 0,
+  verified_keys INTEGER NOT NULL DEFAULT 0,
+  verified_obstacles INTEGER NOT NULL DEFAULT 0,
+  last_event_elapsed_ms INTEGER,
+  last_event_type TEXT,
   distance_run INTEGER NOT NULL DEFAULT 0,
   score INTEGER NOT NULL DEFAULT 0,
   run_coins INTEGER NOT NULL DEFAULT 0,
@@ -169,6 +176,17 @@ CREATE TABLE IF NOT EXISTS game_run_answers (
   selected_index INTEGER NOT NULL,
   correct INTEGER NOT NULL,
   answered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(run_id, question_id)
+);
+
+CREATE TABLE IF NOT EXISTS game_run_think_time (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL REFERENCES game_runs(id) ON DELETE CASCADE,
+  question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  started_at_ms INTEGER NOT NULL,
+  paid_seconds INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  ended_at TEXT,
   UNIQUE(run_id, question_id)
 );
 
@@ -199,5 +217,42 @@ CREATE TABLE IF NOT EXISTS child_equipped_rewards (
 CREATE INDEX IF NOT EXISTS idx_game_runs_child_level ON game_runs(child_id, level_id);
 CREATE INDEX IF NOT EXISTS idx_game_runs_status ON game_runs(status);
 CREATE INDEX IF NOT EXISTS idx_run_answers_run ON game_run_answers(run_id);
+CREATE INDEX IF NOT EXISTS idx_think_time_run ON game_run_think_time(run_id, active);
 CREATE INDEX IF NOT EXISTS idx_level_stats_child ON level_run_stats(child_id);
 CREATE INDEX IF NOT EXISTS idx_equipped_child ON child_equipped_rewards(child_id);
+
+-- RealWorld learning evidence is kept separate from cosmetic rewards and runner scores.
+CREATE TABLE IF NOT EXISTS mission_sessions (
+  id TEXT PRIMARY KEY,
+  child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  mission_id TEXT NOT NULL,
+  age_group TEXT NOT NULL,
+  language TEXT NOT NULL DEFAULT 'en',
+  status TEXT NOT NULL DEFAULT 'active',
+  current_step INTEGER NOT NULL DEFAULT 0,
+  total_steps INTEGER NOT NULL DEFAULT 3,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  correct INTEGER NOT NULL DEFAULT 0,
+  mistakes INTEGER NOT NULL DEFAULT 0,
+  started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at TEXT
+);
+
+CREATE TABLE IF NOT EXISTS mission_attempts (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES mission_sessions(id) ON DELETE CASCADE,
+  child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+  mission_id TEXT NOT NULL,
+  age_group TEXT NOT NULL,
+  language TEXT NOT NULL DEFAULT 'en',
+  step_index INTEGER NOT NULL,
+  skill TEXT NOT NULL,
+  answer_id TEXT NOT NULL,
+  correct INTEGER NOT NULL,
+  attempt_number INTEGER NOT NULL,
+  answered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, step_index, attempt_number)
+);
+
+CREATE INDEX IF NOT EXISTS idx_mission_sessions_child ON mission_sessions(child_id, mission_id);
+CREATE INDEX IF NOT EXISTS idx_mission_attempts_child ON mission_attempts(child_id, mission_id, skill);

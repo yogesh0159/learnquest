@@ -8,6 +8,13 @@
 <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Mukta:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/tokens.css">
 <link rel="stylesheet" href="css/jungle-runner.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "/vendor/three/three.module.js"
+  }
+}
+</script>
 </head>
 <body>
 <div id="runnerApp">
@@ -41,6 +48,10 @@
     <div id="questionTopic">KNOWLEDGE GATE</div>
     <div id="questionText">Choose the correct lane</div>
     <div id="questionOptions" class="question-options"></div>
+    <div class="learning-focus-controls">
+      <strong id="thinkTimeStatus" role="status">🧠 Read &amp; think</strong>
+      <button id="readyBtn" class="ready-btn" type="button" disabled>Lock Answer &amp; Continue</button>
+    </div>
     <div id="answerHint">Move LEFT / CENTER / RIGHT before the gate reaches you.</div>
   </section>
 
@@ -104,6 +115,7 @@
 
 <script src="js/i18n.js"></script>
 <script src="js/api.js"></script>
+<script src="js/character-presets.js"></script>
 <script type="module" src="js/jungle-runner.js"></script>
 </body>
 </html>

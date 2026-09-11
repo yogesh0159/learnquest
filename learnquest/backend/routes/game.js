@@ -3,6 +3,8 @@ const { nanoid } = require("nanoid");
 const db = require("../db");
 const { requireAuth } = require("../utils/auth");
 const asyncRoute = require("../utils/async-route");
+const { createRunToken, hashRunToken, tokenMatches, validateRunEvent, validateCompletionTelemetry } = require("../utils/run-integrity");
+const { EXTRA_THINK_TIME_COST_PER_SECOND, completedPaidSeconds } = require("../utils/think-time");
 
 const router = express.Router();
 
@@ -185,6 +187,79 @@ async function getPlayableRun(tx, runId, childId) {
   return run;
 }
 
+function requireRunToken(run, token) {
+  if (!tokenMatches(token, run.integrity_token_hash)) {
+    const err = new Error("Run integrity token is invalid"); err.status = 403; throw err;
+  }
+}
+
+async function verifiedFocusData(tx, body, childId) {
+  const runId = String(body?.runId || "").trim();
+  const questionId = String(body?.questionId || "").trim();
+  if (!runId || !questionId) { const err = new Error("runId and questionId are required"); err.status = 400; throw err; }
+  const run = await getPlayableRun(tx, runId, childId);
+  requireRunToken(run, body?.runToken);
+  if (run.status !== "active") { const err = new Error("This run is no longer active"); err.status = 409; throw err; }
+  const level = await tx.one("SELECT * FROM game_levels WHERE id = ?", [run.level_id]);
+  const child = await tx.one("SELECT * FROM children WHERE id = ?", [childId]);
+  const question = await tx.one("SELECT * FROM questions WHERE id = ?", [questionId]);
+  if (!level || !child || !question || question.subject_id !== level.gate_subject_id || question.age_group !== child.age_group) {
+    const err = new Error("Question does not belong to this run"); err.status = 400; throw err;
+  }
+  const answered = await tx.one("SELECT id FROM game_run_answers WHERE run_id = ? AND question_id = ?", [runId, questionId]);
+  if (answered) { const err = new Error("This checkpoint is already resolved"); err.status = 409; throw err; }
+  return { run, child, questionId };
+}
+
+router.post("/runner/focus/start", requireAuth("child"), asyncRoute(async (req, res) => {
+  const result = await db.transaction(async (tx) => {
+    const { run, child, questionId } = await verifiedFocusData(tx, req.body, req.user.id);
+    await tx.run("UPDATE game_run_think_time SET active = 0, ended_at = CURRENT_TIMESTAMP WHERE run_id = ? AND active = 1 AND question_id <> ?", [run.id, questionId]);
+    let focus = await tx.one("SELECT * FROM game_run_think_time WHERE run_id = ? AND question_id = ?", [run.id, questionId]);
+    if (!focus) {
+      await tx.run("INSERT INTO game_run_think_time (id, run_id, question_id, started_at_ms) VALUES (?, ?, ?, ?)", [`gtt_${nanoid(12)}`, run.id, questionId, Date.now()]);
+      focus = await tx.one("SELECT * FROM game_run_think_time WHERE run_id = ? AND question_id = ?", [run.id, questionId]);
+    }
+    if (!Number(focus.active)) { const err = new Error("Learning Focus has already ended"); err.status = 409; throw err; }
+    return { balance: Number(child.coins || 0), paidSeconds: Number(focus.paid_seconds || 0) };
+  });
+  res.json(result);
+}));
+
+router.post("/runner/focus/charge", requireAuth("child"), asyncRoute(async (req, res) => {
+  const result = await db.transaction(async (tx) => {
+    const { run, questionId } = await verifiedFocusData(tx, req.body, req.user.id);
+    // A harmless update takes a row lock in MySQL and serializes retries; SQLite
+    // transactions are serialized by the adapter. The client never supplies cost.
+    await tx.run("UPDATE game_run_think_time SET paid_seconds = paid_seconds WHERE run_id = ? AND question_id = ?", [run.id, questionId]);
+    const focus = await tx.one("SELECT * FROM game_run_think_time WHERE run_id = ? AND question_id = ?", [run.id, questionId]);
+    if (!focus || !Number(focus.active)) { const err = new Error("Learning Focus is not active"); err.status = 409; throw err; }
+    const chargeable = completedPaidSeconds(Date.now() - Number(focus.started_at_ms));
+    let paidSeconds = Number(focus.paid_seconds || 0);
+    if (chargeable > paidSeconds) {
+      const deduction = await tx.run("UPDATE children SET coins = coins - ? WHERE id = ? AND coins >= ?", [EXTRA_THINK_TIME_COST_PER_SECOND, req.user.id, EXTRA_THINK_TIME_COST_PER_SECOND]);
+      if (!deduction.changes) {
+        await tx.run("UPDATE game_run_think_time SET active = 0, ended_at = CURRENT_TIMESTAMP WHERE id = ?", [focus.id]);
+        const child = await tx.one("SELECT coins FROM children WHERE id = ?", [req.user.id]);
+        return { afforded: false, balance: Number(child.coins || 0), paidSeconds };
+      }
+      paidSeconds++;
+      await tx.run("UPDATE game_run_think_time SET paid_seconds = ? WHERE id = ?", [paidSeconds, focus.id]);
+    }
+    const child = await tx.one("SELECT coins FROM children WHERE id = ?", [req.user.id]);
+    return { afforded: true, balance: Number(child.coins || 0), paidSeconds };
+  });
+  res.json(result);
+}));
+
+router.post("/runner/focus/end", requireAuth("child"), asyncRoute(async (req, res) => {
+  await db.transaction(async (tx) => {
+    const { run, questionId } = await verifiedFocusData(tx, req.body, req.user.id);
+    await tx.run("UPDATE game_run_think_time SET active = 0, ended_at = CURRENT_TIMESTAMP WHERE run_id = ? AND question_id = ? AND active = 1", [run.id, questionId]);
+  });
+  res.json({ ended: true });
+}));
+
 router.post("/runner/start", requireAuth("child"), asyncRoute(async (req, res) => {
   const levelId = String(req.body?.levelId || "").trim();
   if (!levelId) return res.status(400).json({ error: "levelId is required" });
@@ -208,13 +283,15 @@ router.post("/runner/start", requireAuth("child"), asyncRoute(async (req, res) =
       [req.user.id]
     );
     const runId = `run_${nanoid(14)}`;
+    const runToken = createRunToken();
     await tx.run(
-      "INSERT INTO game_runs (id, child_id, level_id, status) VALUES (?, ?, ?, ?)",
-      [runId, req.user.id, levelId, "active"]
+      "INSERT INTO game_runs (id, child_id, level_id, status, integrity_token_hash) VALUES (?, ?, ?, ?, ?)",
+      [runId, req.user.id, levelId, "active", hashRunToken(runToken)]
     );
 
     return {
       runId,
+      runToken,
       mission: missionForLevel(level.level_number, Number(level.is_boss || 0) === 1, level.world_id),
       questionCount: Number(level.questions_required || 3),
       isBoss: Number(level.is_boss || 0) === 1,
@@ -235,6 +312,7 @@ router.post("/runner/answer", requireAuth("child"), asyncRoute(async (req, res) 
 
   const result = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") {
       const err = new Error("This run is no longer active"); err.status = 409; throw err;
     }
@@ -248,6 +326,11 @@ router.post("/runner/answer", requireAuth("child"), asyncRoute(async (req, res) 
     if (question.subject_id !== level.gate_subject_id || question.age_group !== child.age_group) {
       const err = new Error("Question does not belong to this level"); err.status = 400; throw err;
     }
+
+    await tx.run(
+      "UPDATE game_run_think_time SET active = 0, ended_at = CURRENT_TIMESTAMP WHERE run_id = ? AND question_id = ? AND active = 1",
+      [runId, questionId]
+    );
 
     const duplicate = await tx.one(
       "SELECT * FROM game_run_answers WHERE run_id = ? AND question_id = ?",
@@ -292,12 +375,33 @@ router.post("/runner/answer", requireAuth("child"), asyncRoute(async (req, res) 
   res.json(result);
 }));
 
+router.post("/runner/event", requireAuth("child"), asyncRoute(async (req, res) => {
+  const runId = String(req.body?.runId || "").trim();
+  const type = String(req.body?.type || "").trim();
+  const amount = Number(req.body?.amount);
+  const sequence = Number(req.body?.sequence);
+  if (!runId) return res.status(400).json({ error: "runId is required" });
+  const result = await db.transaction(async (tx) => {
+    const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
+    if (run.status !== "active") { const err = new Error("This run is no longer active"); err.status = 409; throw err; }
+    const elapsedMs = Math.max(0, Date.now() - new Date(run.started_at).getTime());
+    const check = validateRunEvent({ type, amount, sequence, previousSequence: run.event_sequence, elapsedMs, previousEventElapsedMs: run.last_event_elapsed_ms, previousEventType: run.last_event_type });
+    if (!check.ok) { const err = new Error(check.reason); err.status = 409; throw err; }
+    const column = { coin: "verified_coins", key: "verified_keys", obstacle: "verified_obstacles" }[type];
+    await tx.run(`UPDATE game_runs SET event_sequence = ?, ${column} = ${column} + ?, last_event_elapsed_ms = ?, last_event_type = ? WHERE id = ?`, [sequence, amount, elapsedMs, type, run.id]);
+    return { accepted: true, sequence };
+  });
+  res.json(result);
+}));
+
 router.post("/runner/crash", requireAuth("child"), asyncRoute(async (req, res) => {
   const runId = String(req.body?.runId || "").trim();
   if (!runId) return res.status(400).json({ error: "runId is required" });
 
   const result = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") return { ok: true, alreadyClosed: true };
 
     const distance = clampNumber(req.body?.distance, 0, 10000);
@@ -335,6 +439,7 @@ router.post("/runner/complete", requireAuth("child"), asyncRoute(async (req, res
 
   const response = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") {
       const err = new Error("This run is already finished"); err.status = 409; throw err;
     }
@@ -351,11 +456,14 @@ router.post("/runner/complete", requireAuth("child"), asyncRoute(async (req, res
 
     const distance = clampNumber(req.body?.distance, 0, 10000);
     const score = clampNumber(req.body?.score, 0, 10000000);
-    const runCoins = clampNumber(req.body?.coins, 0, 120);
-    const keys = clampNumber(req.body?.keys, 0, 20);
+    const runCoins = clampNumber(run.verified_coins, 0, 120);
+    const keys = clampNumber(run.verified_keys, 0, 20);
     const obstacles = clampNumber(req.body?.obstaclesDodged, 0, 1000);
     const combo = clampNumber(req.body?.maxCombo, 0, 1000);
     const durationSeconds = clampNumber(req.body?.durationSeconds, 1, 3600, 60);
+    const serverDurationSeconds = Math.max(1, Math.floor((Date.now() - new Date(run.started_at).getTime()) / 1000));
+    const telemetry = validateCompletionTelemetry({ distance, score, combo, obstacles, verifiedCoins: runCoins, verifiedKeys: keys }, serverDurationSeconds);
+    if (!telemetry.ok) { const err = new Error(telemetry.reason); err.status = 409; throw err; }
 
     const answerRows = await tx.all(`
       SELECT a.correct, q.xp_reward

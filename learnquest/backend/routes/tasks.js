@@ -13,6 +13,8 @@ router.get("/mine", requireAuth("child"), asyncRoute(async (req, res) => {
   res.json({ tasks });
 }));
 
+// Backwards-compatible endpoint name: a child can report that the task is
+// done, but only the parent can approve it and release the reward.
 router.post("/:id/complete", requireAuth("child"), asyncRoute(async (req, res) => {
   const result = await db.transaction(async (tx) => {
     const task = await tx.one(
@@ -20,19 +22,24 @@ router.post("/:id/complete", requireAuth("child"), asyncRoute(async (req, res) =
       [req.params.id, req.user.id]
     );
     if (!task) { const err = new Error("Task not found"); err.status = 404; throw err; }
-    if (task.status === "completed") { const err = new Error("Already completed"); err.status = 409; throw err; }
-
-    await tx.run(
-      "UPDATE parent_tasks SET status = ?, completed_at = CURRENT_TIMESTAMP WHERE id = ?",
-      ["completed", task.id]
-    );
-
-    if (task.reward_type === "coins") {
-      await tx.run("UPDATE children SET coins = coins + ? WHERE id = ?", [Number(task.reward_value || 0), req.user.id]);
+    if (task.status === "completed") {
+      return { ok: true, status: "completed", alreadyApproved: true };
+    }
+    if (task.status === "submitted") {
+      return { ok: true, status: "submitted", alreadySubmitted: true };
     }
 
-    const updated = await tx.one("SELECT coins FROM children WHERE id = ?", [req.user.id]);
-    return { ok: true, newCoins: Number(updated?.coins || 0) };
+    await tx.run(
+      "UPDATE parent_tasks SET status = ?, completed_at = NULL WHERE id = ? AND child_id = ?",
+      ["submitted", task.id, req.user.id]
+    );
+
+    return {
+      ok: true,
+      status: "submitted",
+      rewardPending: true,
+      message: "Task sent to your parent for approval.",
+    };
   });
 
   res.json(result);
