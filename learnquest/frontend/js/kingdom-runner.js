@@ -177,12 +177,22 @@ class KingdomRunner {
     this.lastTime = performance.now();
     this.resizeObserver = null;
     this.inputController = null;
+    this.selectedAnswerLane = null;
+    this.focusStartPromise = null;
     this.learningFocus = new LearningFocus({
-      ageGroup: this.child.age_group,
-      onChange: (seconds, active) => {
-        ui.thinkTimeStatus.textContent = active ? `🧠 Read & think — ${seconds}s` : "Choose your lane!";
-        ui.ready.disabled = !active;
+      onChange: ({ active, freeRemaining, paid, balance, message }) => {
+        if (message) ui.thinkTimeStatus.textContent = message;
+        else if (active && !paid) ui.thinkTimeStatus.textContent = `🧠 Think Time — ${freeRemaining}s · Choose an answer lane`;
+        else if (active) ui.thinkTimeStatus.textContent = `⏱ Extra Think Time · -10 coins/sec · 🪙 ${balance ?? "…"}`;
+        ui.ready.disabled = !active || this.selectedAnswerLane === null;
         ui.ready.hidden = !active;
+      },
+      onCharge: async () => {
+        await this.focusStartPromise;
+        return api.runnerFocusCharge(this.focusPayload());
+      },
+      onReady: () => {
+        if (this.activeQuestion) api.runnerFocusEnd(this.focusPayload()).catch(() => {});
       },
     });
     this.gameLoop = new GameLoop({
@@ -539,7 +549,7 @@ class KingdomRunner {
         moveLane: (direction) => this.moveLane(direction),
         jump: () => this.jump(),
         slide: () => this.slide(),
-        ready: () => this.learningFocus.ready(),
+        ready: () => this.lockAnswerAndContinue(),
         togglePause: () => { if (this.running && !this.ended) this.togglePause(); },
         pauseWhenHidden: () => {
           if(this.running&&!this.ended&&!this.paused){
@@ -550,7 +560,7 @@ class KingdomRunner {
     });
     this.inputController.bind();
     ui.pause.onclick=()=>this.togglePause(); ui.resumeBtn.onclick=()=>this.togglePause(false);
-    ui.ready.onclick=()=>this.learningFocus.ready();
+    ui.ready.onclick=()=>this.lockAnswerAndContinue();
     ui.sound.onclick=()=>{this.audio.muted=!this.audio.muted;ui.sound.textContent=this.audio.muted?"🔇":"🔊";};
   }
 
@@ -579,11 +589,19 @@ class KingdomRunner {
   moveLane(dir) {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
     this.targetLane=Math.max(0,Math.min(2,this.targetLane+dir));
+    if(this.learningFocus.active)this.selectedAnswerLane=this.targetLane;
     if (this.characterController) {
       this.characterController.setState(dir < 0 ? "dodgeLeft" : "dodgeRight");
       this.characterStateTimer=.24;
     }
     this.highlightQuestionLane();
+  }
+  focusPayload() {
+    return { runId:this.runId, runToken:this.runToken, questionId:this.activeQuestion?.id };
+  }
+  lockAnswerAndContinue() {
+    if (!this.learningFocus.active || this.selectedAnswerLane === null) return false;
+    return this.learningFocus.ready();
   }
   jump() {
     if(!this.running||this.paused||this.ended||this.answerPending||this.learningFocus.active)return;
@@ -820,7 +838,14 @@ class KingdomRunner {
       this.spawnAnswerGate(i,opt.text,opt.originalIndex);
     });
     ui.questionPanel.classList.add("show");
+    this.selectedAnswerLane=null;
+    this.jumpVelocity=0;this.jumpY=0;this.sliding=false;this.slideTimer=0;this.player.position.y=0;
+    if(!this.characterController)this.player.scale.y=1;
+    ui.ready.disabled=true;
     this.learningFocus.start();
+    this.focusStartPromise=api.runnerFocusStart(this.focusPayload()).then(({balance})=>{
+      if(this.learningFocus.active){this.learningFocus.balance=balance;this.learningFocus.notify();}
+    }).catch(()=>{if(this.learningFocus.active)this.learningFocus.finish("Time to choose!");});
     this.highlightQuestionLane();
     this.nextObstacleAt=Math.max(this.nextObstacleAt,this.distance+38);
   }
@@ -845,6 +870,7 @@ class KingdomRunner {
 
   async resolveQuestionGate() {
     if(this.questionGateResolved||!this.activeQuestion||this.answerPending)return;
+    this.learningFocus.finish();
     this.questionGateResolved=true;this.answerPending=true;
     const chosenLane=this.closestLane();const gate=this.entities.find(e=>e.category==="gate"&&e.lane===chosenLane&&!e.done);
     if(!gate){this.answerPending=false;return;}
@@ -885,13 +911,15 @@ class KingdomRunner {
   selectLane(lane) {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
     this.targetLane=Math.max(0,Math.min(2,lane));
+    if(this.learningFocus.active)this.selectedAnswerLane=this.targetLane;
     this.highlightQuestionLane();
   }
 
   highlightQuestionLane() {
     if(!ui.questionPanel.classList.contains("show"))return;
+    ui.ready.disabled=!this.learningFocus.active||this.selectedAnswerLane===null;
     for(const option of ui.questionOptions.querySelectorAll(".question-option")){
-      option.classList.toggle("active",Number(option.dataset.lane)===this.targetLane);
+      option.classList.toggle("active",Number(option.dataset.lane)===(this.learningFocus.active?this.selectedAnswerLane:this.targetLane));
     }
   }
 

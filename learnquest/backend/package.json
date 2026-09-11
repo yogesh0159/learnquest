@@ -12,7 +12,7 @@
     "start": "node server.js",
     "seed": "node db/seed.js",
     "migrate": "node db/migrate.js",
-    "check": "node --check server.js && node --check db/index.js && node --check db/seed.js && node --check db/migrate.js && node --check learning/mission-catalog.js && node --check utils/logger.js && node --check utils/validate.js && node --check utils/rate-limit.js && node --check utils/features.js && node --check utils/run-integrity.js && node --check routes/auth.js && node --check routes/child.js && node --check routes/questions.js && node --check routes/game.js && node --check routes/missions.js && node --check routes/rewards.js && node --check routes/parent.js && node --check routes/tasks.js",
+    "check": "node --check server.js && node --check db/index.js && node --check db/seed.js && node --check db/migrate.js && node --check learning/mission-catalog.js && node --check utils/logger.js && node --check utils/validate.js && node --check utils/rate-limit.js && node --check utils/features.js && node --check utils/run-integrity.js && node --check utils/think-time.js && node --check routes/auth.js && node --check routes/child.js && node --check routes/questions.js && node --check routes/game.js && node --check routes/missions.js && node --check routes/rewards.js && node --check routes/parent.js && node --check routes/tasks.js",
     "test": "node --test"
   },
   "dependencies": {

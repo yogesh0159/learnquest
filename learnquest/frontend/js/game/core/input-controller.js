@@ -45,7 +45,7 @@ export class InputController {
 
     this.listen(this.eventTarget, "keydown", (event) => {
       if (event.repeat) return;
-      if (["Enter", " "].includes(event.key) && this.actions.ready?.()) {
+      if (event.key === "Enter" && this.actions.ready?.()) {
         event.preventDefault();
         return;
       }

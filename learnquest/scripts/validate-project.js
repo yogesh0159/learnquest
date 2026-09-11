@@ -114,8 +114,8 @@ try {
   for (const file of ['backend/db/schema.sqlite.sql','backend/db/schema.mysql.sql']) {
     const sql = read(file);
     const tables = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS\s+([a-zA-Z0-9_]+)/gi)].map((x) => x[1]);
-    assert(new Set(tables).size === 18, `${file} defines 18 tables`);
-    for (const required of ['parents','children','questions','game_levels','child_level_progress','game_runs','game_run_answers','level_run_stats','child_equipped_rewards','mission_sessions','mission_attempts']) {
+    assert(new Set(tables).size === 19, `${file} defines 19 tables`);
+    for (const required of ['parents','children','questions','game_levels','child_level_progress','game_runs','game_run_answers','game_run_think_time','level_run_stats','child_equipped_rewards','mission_sessions','mission_attempts']) {
       assert(tables.includes(required), `${file} includes ${required}`);
     }
   }

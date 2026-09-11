@@ -107,6 +107,8 @@ app.use(
     setHeaders(res, filePath) {
       if (filePath.endsWith(".html")) {
         res.setHeader("Cache-Control", "no-cache");
+      } else if (/\.(?:js|mjs|css|json)$/i.test(filePath)) {
+        res.setHeader("Cache-Control", "no-cache, must-revalidate");
       } else if (/\.(glb|gltf|bin|ktx2|webp|png|jpe?g|woff2?)$/i.test(filePath)) {
         res.setHeader("Cache-Control", "public, max-age=604800, immutable");
       } else {
