@@ -122,16 +122,31 @@ try {
 
   // Existing runner integration checks.
   const runner = read('frontend/js/jungle-runner.js');
-  assert(runner.includes('/vendor/three/three.module.js'), 'Runner prefers locally served Three.js');
-  assert(runner.includes('three@0.185.1'), 'Runner CDN fallback matches pinned Three.js');
-  assert(runner.includes('moveLane(-1)') && runner.includes('moveLane(1)') && runner.includes('jump()') && runner.includes('slide()'), 'Runner includes lane, jump and slide controls');
+  const assetManager = read('frontend/js/game/core/asset-manager.js');
+  assert(runner.includes('loadThreeEngine') && assetManager.includes('/vendor/three/three.module.js'), 'Runner prefers locally served Three.js through the asset manager');
+  assert(assetManager.includes('three@0.185.1'), 'Runner CDN fallback matches pinned Three.js');
+  const inputController = read('frontend/js/game/core/input-controller.js');
+  assert(runner.includes('InputController') && inputController.includes('moveLane(-1)') && inputController.includes('moveLane(1)') && inputController.includes('actions.jump()') && inputController.includes('actions.slide()'), 'Runner includes reusable lane, jump and slide controls');
   assert(runner.includes('runnerAnswer') && runner.includes('spawnAnswerGate'), 'Runner learning gates are integrated');
   assert(runner.includes('crash("wrong-answer")'), 'Wrong learning lane can end the run');
   assert(!runner.toLowerCase().includes('phaser'), 'Legacy Phaser engine is not used by the 3D runner');
   const kingdomRunner = read('frontend/js/kingdom-runner.js');
-  assert(kingdomRunner.includes('/vendor/three/three.module.js'), 'Maths Kingdom prefers locally served Three.js');
+  assert(kingdomRunner.includes('loadThreeEngine'), 'Maths Kingdom uses the shared Three.js asset loader');
   assert(kingdomRunner.includes('state.mathsKingdomLevels'), 'Maths Kingdom loads its own level progression');
   assert(kingdomRunner.includes('spawnAnswerGate') && kingdomRunner.includes('runnerAnswer'), 'Maths Kingdom learning gates are integrated');
+  assert(kingdomRunner.includes('InputController'), 'Maths Kingdom uses reusable runner controls');
+  const collisionSystem = read('frontend/js/game/core/collision-system.js');
+  assert(runner.includes('classifyRunnerCollision') && kingdomRunner.includes('classifyRunnerCollision'), 'Both worlds use reusable collision classification');
+  assert(collisionSystem.includes('closestLaneIndex') && collisionSystem.includes('magnetActive') && collisionSystem.includes('jumpHeight'), 'Collision helpers preserve lane, magnet, and jump rules');
+  const performanceManager = read('frontend/js/game/core/performance-manager.js');
+  assert(runner.includes('runnerQualityProfile') && kingdomRunner.includes('runnerQualityProfile'), 'Both worlds use shared performance quality selection');
+  assert(performanceManager.includes('disposeObject3D') && performanceManager.includes('resizeRunnerView'), 'Performance helpers cover cleanup and camera resize');
+  const gameLoop = read('frontend/js/game/core/game-loop.js');
+  assert(runner.includes('new GameLoop') && kingdomRunner.includes('new GameLoop'), 'Both worlds use the reusable update and render lifecycle');
+  assert(gameLoop.includes('cancelFrame') && runner.includes('this.gameLoop.stop()') && kingdomRunner.includes('this.gameLoop.stop()'), 'Runner loops are cancelled during cleanup');
+  const rewardSystem = read('frontend/js/game/core/reward-system.js');
+  assert(runner.includes('initialRewardState') && kingdomRunner.includes('initialRewardState'), 'Both worlds initialize equipment through the reusable reward system');
+  assert(rewardSystem.includes('reward_magic_sparkle') && rewardSystem.includes('reward_coin_magnet') && rewardSystem.includes('reward_focus_charm'), 'Reusable reward state preserves shield, magnet, and focus powers');
   assert(kingdomRunner.includes('buildDragon()'), 'Maths Kingdom includes the Number Dragon boss');
   const dashboard = read('frontend/dashboard.html');
   assert(dashboard.includes('is_unlocked') && dashboard.includes('world-maths_kingdom.html') === false, 'Dashboard uses per-child world unlock state');

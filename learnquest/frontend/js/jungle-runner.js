@@ -1,10 +1,10 @@
 import { CharacterController } from "./game/character-controller.js";
-
-const THREE_URLS = [
-  "/vendor/three/three.module.js",
-  "https://cdn.jsdelivr.net/npm/three@0.185.1/build/three.module.js",
-  "https://unpkg.com/three@0.185.1/build/three.module.js",
-];
+import { InputController } from "./game/core/input-controller.js";
+import { classifyRunnerCollision, closestLaneIndex } from "./game/core/collision-system.js";
+import { loadThreeEngine } from "./game/core/asset-manager.js";
+import { disposeObject3D, resizeRunnerView, runnerQualityProfile } from "./game/core/performance-manager.js";
+import { GameLoop } from "./game/core/game-loop.js";
+import { equippedRewardsBySlot, initialRewardState } from "./game/core/reward-system.js";
 
 const $ = (id) => document.getElementById(id);
 const ui = {
@@ -25,16 +25,12 @@ const levelId = params.get("level");
 if (!levelId) location.href = "world-jungle.html";
 
 let THREE;
-let threeLoadError = null;
-for (const url of THREE_URLS) {
-  try { THREE = await import(url); break; }
-  catch (error) { threeLoadError = error; }
-}
-if (!THREE) {
+try { THREE = await loadThreeEngine(); }
+catch (threeLoadError) {
   ui.loading.textContent = "3D engine could not load. Check your internet connection and refresh.";
   ui.startBtn.textContent = "3D engine unavailable";
   console.error(threeLoadError);
-  throw threeLoadError || new Error("Three.js failed to load");
+  throw threeLoadError;
 }
 
 const LANES = [-3.15, 0, 3.15];
@@ -174,12 +170,14 @@ class JungleRunner {
     this.stepAccumulator = 0;
     this.lastTime = performance.now();
     this.resizeObserver = null;
-    this.swipeStart = null;
-    this.boundFrame = (time) => this.frame(time);
-    this.equipped = Object.fromEntries((state.equippedRewards || []).map((r) => [r.slot, r]));
-    if (this.equipped.power?.reward_id === "reward_magic_sparkle") this.shieldCharges = 1;
-    if (this.equipped.power?.reward_id === "reward_coin_magnet") this.magnetTimer = 12;
-    if (this.equipped.power?.reward_id === "reward_focus_charm") this.doubleScoreTimer = 12;
+    this.inputController = null;
+    this.gameLoop = new GameLoop({
+      clock: this.clock,
+      update: (dt) => { if(this.running&&!this.paused&&!this.ended&&!this.answerPending)this.update(dt); },
+      render: (dt) => { this.animateVisuals(dt);this.renderer.render(this.scene,this.camera); },
+    });
+    this.equipped = equippedRewardsBySlot(state.equippedRewards);
+    Object.assign(this, initialRewardState(this.equipped));
   }
 
   makeQuestionDistances() {
@@ -192,9 +190,9 @@ class JungleRunner {
 
   initRenderer() {
     const T = this.T;
-    const lowPower = window.innerWidth < 700 || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+    const quality = runnerQualityProfile();
     this.renderer = new T.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, lowPower ? 1.25 : 1.75));
+    this.renderer.setPixelRatio(quality.pixelRatio);
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = T.PCFSoftShadowMap;
@@ -213,7 +211,7 @@ class JungleRunner {
     const sun = new T.DirectionalLight(0xfff0c7, 3.0);
     sun.position.set(-12, 20, 8);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(lowPower ? 512 : 1024, lowPower ? 512 : 1024);
+    sun.shadow.mapSize.set(quality.shadowMapSize, quality.shadowMapSize);
     sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
     sun.shadow.camera.top = 24; sun.shadow.camera.bottom = -10;
     this.scene.add(sun);
@@ -227,7 +225,7 @@ class JungleRunner {
     this.onResize();
     window.addEventListener("resize", () => this.onResize(), { passive: true });
     window.addEventListener("pagehide", () => this.dispose(), { once: true });
-    requestAnimationFrame(this.boundFrame);
+    this.gameLoop.start();
   }
 
   mat(color, roughness = .78, metalness = .03) {
@@ -513,30 +511,24 @@ class JungleRunner {
   }
 
   bindControls() {
-    const act=(el,fn)=>el.addEventListener("pointerdown",(e)=>{e.preventDefault();fn();});
-    act(ui.left,()=>this.moveLane(-1)); act(ui.right,()=>this.moveLane(1)); act(ui.jump,()=>this.jump()); act(ui.slide,()=>this.slide());
-    window.addEventListener("keydown",(e)=>{
-      if (e.repeat) return;
-      if (["ArrowLeft","a","A"].includes(e.key)) this.moveLane(-1);
-      else if (["ArrowRight","d","D"].includes(e.key)) this.moveLane(1);
-      else if (["ArrowUp","w","W"," "].includes(e.key)) { e.preventDefault(); this.jump(); }
-      else if (["ArrowDown","s","S"].includes(e.key)) { e.preventDefault(); this.slide(); }
-      else if (["p","P","Escape"].includes(e.key) && this.running && !this.ended) this.togglePause();
+    this.inputController = new InputController({
+      canvas: this.renderer.domElement,
+      buttons: { left: ui.left, right: ui.right, jump: ui.jump, slide: ui.slide },
+      actions: {
+        moveLane: (direction) => this.moveLane(direction),
+        jump: () => this.jump(),
+        slide: () => this.slide(),
+        togglePause: () => { if (this.running && !this.ended) this.togglePause(); },
+        pauseWhenHidden: () => {
+          if(this.running&&!this.ended&&!this.paused){
+            this.paused=true;ui.pauseOverlay.classList.remove("hidden");ui.pause.textContent="▶";this.clock.getDelta();
+          }
+        },
+      },
     });
-    const canvas=this.renderer.domElement;
-    canvas.addEventListener("pointerdown",e=>{this.swipeStart={x:e.clientX,y:e.clientY,t:performance.now()};});
-    canvas.addEventListener("pointerup",e=>{
-      if(!this.swipeStart)return; const dx=e.clientX-this.swipeStart.x,dy=e.clientY-this.swipeStart.y;
-      this.swipeStart=null; if(Math.max(Math.abs(dx),Math.abs(dy))<32)return;
-      if(Math.abs(dx)>Math.abs(dy)) this.moveLane(dx>0?1:-1); else if(dy<0)this.jump(); else this.slide();
-    });
+    this.inputController.bind();
     ui.pause.onclick=()=>this.togglePause(); ui.resumeBtn.onclick=()=>this.togglePause(false);
     ui.sound.onclick=()=>{this.audio.muted=!this.audio.muted;ui.sound.textContent=this.audio.muted?"🔇":"🔊";};
-    document.addEventListener("visibilitychange",()=>{
-      if(document.hidden&&this.running&&!this.ended&&!this.paused){
-        this.paused=true;ui.pauseOverlay.classList.remove("hidden");ui.pause.textContent="▶";this.clock.getDelta();
-      }
-    });
   }
 
   async startRun() {
@@ -577,14 +569,6 @@ class JungleRunner {
   slide() {
     if(!this.running||this.paused||this.ended||this.answerPending)return;
     if(this.jumpY<.2){this.sliding=true;this.slideTimer=.72;this.audio.slide();this.characterController?.setState("slide");}
-  }
-
-  frame() {
-    const dt=Math.min(.035,this.clock.getDelta());
-    if(this.running&&!this.paused&&!this.ended&&!this.answerPending)this.update(dt);
-    this.animateVisuals(dt);
-    this.renderer.render(this.scene,this.camera);
-    requestAnimationFrame(this.boundFrame);
   }
 
   update(dt) {
@@ -685,23 +669,13 @@ class JungleRunner {
   }
 
   checkEntity(e) {
-    if(e.done||e.group.position.z<COLLISION_Z_MIN||e.group.position.z>COLLISION_Z_MAX)return;
-    const laneX=e.group.position.x; const near=Math.abs(laneX-this.playerX)<1.25;
-    if(e.category==="collectible"){
-      const magnetic=this.magnetTimer>0&&Math.abs(laneX-this.playerX)<4.2;
-      if(near||magnetic){e.done=true;this.collect(e);}
-      return;
-    }
-    if(e.category==="gate"){
-      if(!e.gateSetResolved&&Math.abs(e.group.position.z-PLAYER_Z)<.9)this.resolveQuestionGate();
-      return;
-    }
-    if(e.category!=="obstacle"||!near||this.invulnerableTimer>0)return;
-    let safe=false;
-    if(e.kind==="jump"||e.kind==="pit")safe=this.jumpY>1.05;
-    else if(e.kind==="slide")safe=this.sliding;
-    else safe=false;
-    if(!safe){e.hit=true;this.crash(e.kind);}
+    const collision=classifyRunnerCollision(e,{
+      playerX:this.playerX,jumpY:this.jumpY,sliding:this.sliding,
+      magnetActive:this.magnetTimer>0,invulnerable:this.invulnerableTimer>0,
+    },{zMin:COLLISION_Z_MIN,zMax:COLLISION_Z_MAX,playerZ:PLAYER_Z,laneRadius:1.25,magnetRadius:4.2,gateRadius:.9,jumpHeight:1.05});
+    if(collision.type==="collect"){e.done=true;this.collect(e);}
+    else if(collision.type==="gate")this.resolveQuestionGate();
+    else if(collision.type==="crash"){e.hit=true;this.crash(collision.kind);}
   }
 
   collect(e) {
@@ -864,7 +838,7 @@ class JungleRunner {
   }
 
   closestLane() {
-    let best=0,dist=Infinity;LANES.forEach((x,i)=>{const d=Math.abs(this.playerX-x);if(d<dist){dist=d;best=i;}});return best;
+    return closestLaneIndex(this.playerX,LANES);
   }
 
   consumeShield(message) {
@@ -962,14 +936,17 @@ class JungleRunner {
   }
 
   onResize() {
-    if(!this.renderer||!this.camera)return;const w=window.innerWidth,h=window.innerHeight;this.renderer.setSize(w,h);this.camera.aspect=w/h;this.camera.fov=w<700?68:62;this.camera.updateProjectionMatrix();
+    resizeRunnerView(this.renderer,this.camera,window.innerWidth,window.innerHeight);
   }
 
   disposeGroup(group) {
-    group.traverse?.(obj=>{if(obj.geometry)obj.geometry.dispose?.();if(obj.material){const mats=Array.isArray(obj.material)?obj.material:[obj.material];mats.forEach(m=>{m.map?.dispose?.();m.dispose?.();});}});
+    disposeObject3D(group);
   }
 
   dispose() {
+    this.gameLoop.stop();
+    this.inputController?.dispose();
+    this.inputController=null;
     this.characterController?.dispose();
     this.characterController=null;
     this.renderer?.dispose?.();
