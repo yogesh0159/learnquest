@@ -37,6 +37,33 @@ function normalizeParams(params) {
   return Array.isArray(params) ? params : [];
 }
 
+const mysqlGameRunCompatibilityColumns = {
+  integrity_token_hash: "CHAR(64) NULL",
+  event_sequence: "INT NOT NULL DEFAULT 0",
+  verified_coins: "INT NOT NULL DEFAULT 0",
+  verified_keys: "INT NOT NULL DEFAULT 0",
+  verified_obstacles: "INT NOT NULL DEFAULT 0",
+  last_event_elapsed_ms: "INT NULL",
+  last_event_type: "VARCHAR(16) NULL",
+};
+
+async function ensureMysqlGameRunColumns(executor) {
+  const [rows] = await executor.execute(
+    `SELECT COLUMN_NAME
+       FROM INFORMATION_SCHEMA.COLUMNS
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME = ?`,
+    ["game_runs"]
+  );
+  const existingColumns = new Set(rows.map((row) => row.COLUMN_NAME));
+
+  for (const [name, definition] of Object.entries(mysqlGameRunCompatibilityColumns)) {
+    if (!existingColumns.has(name)) {
+      await executor.query(`ALTER TABLE game_runs ADD COLUMN \`${name}\` ${definition}`);
+    }
+  }
+}
+
 async function init() {
   if (initialized) return;
 
@@ -79,15 +106,7 @@ async function init() {
     // automatically on every startup (idempotent) so new child creation and
     // legacy PIN upgrades never fail with "Data too long for column 'pin'".
     await mysqlPool.query("ALTER TABLE children MODIFY COLUMN pin VARCHAR(255) NOT NULL");
-    for (const statement of [
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS integrity_token_hash CHAR(64) NULL",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS event_sequence INT NOT NULL DEFAULT 0",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_coins INT NOT NULL DEFAULT 0",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_keys INT NOT NULL DEFAULT 0",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_obstacles INT NOT NULL DEFAULT 0",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_event_elapsed_ms INT NULL",
-      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_event_type VARCHAR(16) NULL",
-    ]) await mysqlPool.query(statement);
+    await ensureMysqlGameRunColumns(mysqlPool);
 
     dialect = "mysql";
     console.log("🗄️ LearnQuest database: MySQL");
@@ -229,4 +248,4 @@ function getDialect() {
   return dialect || "uninitialized";
 }
 
-module.exports = { init, one, all, run, transaction, ping, close, getDialect };
+module.exports = { init, one, all, run, transaction, ping, close, getDialect, ensureMysqlGameRunColumns };
