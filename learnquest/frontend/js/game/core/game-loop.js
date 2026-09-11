@@ -1,6 +1,12 @@
 /** A small lifecycle owner for the shared update/render animation loop. */
 export class GameLoop {
-  constructor({ clock, update, render, requestFrame = requestAnimationFrame, cancelFrame = cancelAnimationFrame }) {
+  constructor({
+    clock,
+    update,
+    render,
+    requestFrame = (callback) => globalThis.requestAnimationFrame(callback),
+    cancelFrame = (id) => globalThis.cancelAnimationFrame(id),
+  }) {
     this.clock = clock;
     this.update = update;
     this.render = render;

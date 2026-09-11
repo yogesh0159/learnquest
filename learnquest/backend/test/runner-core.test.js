@@ -48,6 +48,41 @@ test('game loop caps frame delta and cancels cleanly', async () => {
   assert.equal(cancelled, 7);
 });
 
+test('game loop default frame APIs retain the browser global receiver', async () => {
+  const { GameLoop } = await importCore('game-loop');
+  const originalRequestFrame = globalThis.requestAnimationFrame;
+  const originalCancelFrame = globalThis.cancelAnimationFrame;
+  let scheduled;
+  let cancelled;
+
+  globalThis.requestAnimationFrame = function requestAnimationFrame(callback) {
+    assert.equal(this, globalThis);
+    scheduled = callback;
+    return 11;
+  };
+  globalThis.cancelAnimationFrame = function cancelAnimationFrame(id) {
+    assert.equal(this, globalThis);
+    cancelled = id;
+  };
+
+  try {
+    const loop = new GameLoop({
+      clock: { getDelta: () => .01 },
+      update: () => {},
+      render: () => {},
+    });
+    loop.start();
+    assert.equal(typeof scheduled, 'function');
+    loop.stop();
+    assert.equal(cancelled, 11);
+  } finally {
+    if (originalRequestFrame === undefined) delete globalThis.requestAnimationFrame;
+    else globalThis.requestAnimationFrame = originalRequestFrame;
+    if (originalCancelFrame === undefined) delete globalThis.cancelAnimationFrame;
+    else globalThis.cancelAnimationFrame = originalCancelFrame;
+  }
+});
+
 test('asset loader tries locations in order and returns the first success', async () => {
   const { loadModuleWithFallback } = await importCore('asset-manager');
   const attempted = [];
