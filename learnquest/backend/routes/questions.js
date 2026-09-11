@@ -39,7 +39,10 @@ function rankAdaptiveQuestions(rows, topicStats = [], recentQuestionIds = []) {
       if (!stats || stats.attempted === 0) priority += 55;
       else {
         priority += Math.max(0, 100 - Math.round((stats.accuracy || 0) * 100));
-        priority += Math.min(24, stats.attempted * 3);
+        // Keep sampling topics with little evidence, while allowing a proven
+        // high-mastery topic to move behind them instead of being rewarded
+        // merely because it has accumulated many attempts.
+        priority += Math.max(0, 20 - stats.attempted * 2);
       }
       if (recent.has(String(question.id))) priority -= 70;
       const difficultyBoost = question.difficulty === "hard" ? 2 : question.difficulty === "medium" ? 1 : 0;
