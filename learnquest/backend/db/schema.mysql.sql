@@ -197,6 +197,20 @@ CREATE TABLE IF NOT EXISTS game_run_answers (
   INDEX idx_run_answers_run (run_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS game_run_think_time (
+  id VARCHAR(64) PRIMARY KEY,
+  run_id VARCHAR(64) NOT NULL,
+  question_id VARCHAR(64) NOT NULL,
+  started_at_ms BIGINT NOT NULL,
+  paid_seconds INT NOT NULL DEFAULT 0,
+  active TINYINT(1) NOT NULL DEFAULT 1,
+  ended_at DATETIME NULL,
+  CONSTRAINT fk_think_time_run FOREIGN KEY (run_id) REFERENCES game_runs(id) ON DELETE CASCADE,
+  CONSTRAINT fk_think_time_question FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_think_time_run_question (run_id, question_id),
+  INDEX idx_think_time_run (run_id, active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS level_run_stats (
   id VARCHAR(64) PRIMARY KEY,
   child_id VARCHAR(64) NOT NULL,

@@ -179,6 +179,17 @@ CREATE TABLE IF NOT EXISTS game_run_answers (
   UNIQUE(run_id, question_id)
 );
 
+CREATE TABLE IF NOT EXISTS game_run_think_time (
+  id TEXT PRIMARY KEY,
+  run_id TEXT NOT NULL REFERENCES game_runs(id) ON DELETE CASCADE,
+  question_id TEXT NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+  started_at_ms INTEGER NOT NULL,
+  paid_seconds INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  ended_at TEXT,
+  UNIQUE(run_id, question_id)
+);
+
 CREATE TABLE IF NOT EXISTS level_run_stats (
   id TEXT PRIMARY KEY,
   child_id TEXT NOT NULL REFERENCES children(id) ON DELETE CASCADE,
@@ -206,6 +217,7 @@ CREATE TABLE IF NOT EXISTS child_equipped_rewards (
 CREATE INDEX IF NOT EXISTS idx_game_runs_child_level ON game_runs(child_id, level_id);
 CREATE INDEX IF NOT EXISTS idx_game_runs_status ON game_runs(status);
 CREATE INDEX IF NOT EXISTS idx_run_answers_run ON game_run_answers(run_id);
+CREATE INDEX IF NOT EXISTS idx_think_time_run ON game_run_think_time(run_id, active);
 CREATE INDEX IF NOT EXISTS idx_level_stats_child ON level_run_stats(child_id);
 CREATE INDEX IF NOT EXISTS idx_equipped_child ON child_equipped_rewards(child_id);
 
