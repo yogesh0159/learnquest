@@ -49,6 +49,10 @@ const api = {
   runnerAnswer: (payload) => apiRequest("/game/runner/answer", { method: "POST", body: payload }),
   runnerCrash: (payload) => apiRequest("/game/runner/crash", { method: "POST", body: payload }),
   runnerComplete: (payload) => apiRequest("/game/runner/complete", { method: "POST", body: payload }),
+  missions: () => apiRequest("/missions"),
+  missionStart: (id) => apiRequest(`/missions/${encodeURIComponent(id)}/start`, { method: "POST" }),
+  missionAnswer: (id, payload) => apiRequest(`/missions/${encodeURIComponent(id)}/answer`, { method: "POST", body: payload }),
+  missionProgress: () => apiRequest("/missions/progress/me"),
 
   rewards: () => apiRequest("/rewards"),
   rewardUnlock: (id) => apiRequest(`/rewards/${id}/unlock`, { method: "POST" }),

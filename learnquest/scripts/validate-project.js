@@ -114,8 +114,8 @@ try {
   for (const file of ['backend/db/schema.sqlite.sql','backend/db/schema.mysql.sql']) {
     const sql = read(file);
     const tables = [...sql.matchAll(/CREATE TABLE IF NOT EXISTS\s+([a-zA-Z0-9_]+)/gi)].map((x) => x[1]);
-    assert(new Set(tables).size === 16, `${file} defines 16 tables`);
-    for (const required of ['parents','children','questions','game_levels','child_level_progress','game_runs','game_run_answers','level_run_stats','child_equipped_rewards']) {
+    assert(new Set(tables).size === 18, `${file} defines 18 tables`);
+    for (const required of ['parents','children','questions','game_levels','child_level_progress','game_runs','game_run_answers','level_run_stats','child_equipped_rewards','mission_sessions','mission_attempts']) {
       assert(tables.includes(required), `${file} includes ${required}`);
     }
   }
@@ -159,6 +159,13 @@ try {
   assert(characterPresets.includes('human_boy_v1') && characterPresets.includes('human_girl_v1'), 'Boy and girl explorer presets exist');
   const characterLab = read('frontend/character-lab.html');
   assert(characterLab.includes('type="importmap"') && characterLab.includes('character-lab.js'), '3D explorer lab is wired with a Three.js import map');
+  const realWorldPage = read('frontend/realworld-missions.html');
+  const missionClient = read('frontend/js/realworld-missions.js');
+  const missionSystem = read('frontend/js/game/learning/mission-system.js');
+  assert(realWorldPage.includes('realworld-missions.js') && realWorldPage.includes('missionPicker'), 'RealWorld mission page is wired to its interaction runtime');
+  assert(missionClient.includes('Key ${index + 1}') && missionClient.includes('document.addEventListener("keydown"'), 'RealWorld missions support touch/click and keyboard choices');
+  assert(missionSystem.includes('missionAnswer') && missionSystem.includes('onFeedback'), 'Reusable MissionSystem submits evidence and delivers feedback');
+  assert(dashboard.includes('realworld-missions.html'), 'Child dashboard links to RealWorld missions without replacing existing worlds');
 
   // Production hotfix and security regression checks.
   const dbIndex = read('backend/db/index.js');
