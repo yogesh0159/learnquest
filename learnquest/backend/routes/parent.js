@@ -126,6 +126,13 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
       COALESCE(MAX(score), 0) AS best_score, COALESCE(MAX(stars_earned), 0) AS best_stars
     FROM game_runs WHERE child_id = ?
   `, [req.params.childId]);
+  const missionRows = await db.all(`
+    SELECT a.mission_id, a.skill, COUNT(*) AS attempts, COALESCE(SUM(a.correct), 0) AS correct,
+      MAX(a.answered_at) AS last_practised_at,
+      COUNT(DISTINCT CASE WHEN ms.status = 'completed' THEN ms.id END) AS sessions_completed
+    FROM mission_attempts a JOIN mission_sessions ms ON ms.id = a.session_id
+    WHERE a.child_id = ? GROUP BY a.mission_id, a.skill ORDER BY a.mission_id, a.skill
+  `, [req.params.childId]);
 
   const normalizedStats = subjectStats.map((row) => ({
     subject: row.name_en,
@@ -167,6 +174,17 @@ router.get("/dashboard/:childId", requireAuth("parent"), asyncRoute(async (req, 
         best_stars: Number(r.best_stars || 0), best_accuracy: Number(r.best_accuracy || 0), runs_completed: Number(r.runs_completed || 0),
       })),
     },
+    realWorldMissions: missionRows.map((row) => {
+      const attempts = Number(row.attempts || 0);
+      const correct = Number(row.correct || 0);
+      return {
+        missionId: row.mission_id, skill: row.skill, attempts, correct,
+        mistakes: Math.max(0, attempts - correct),
+        accuracy: attempts ? Math.round((correct / attempts) * 100) : null,
+        sessionsCompleted: Number(row.sessions_completed || 0),
+        lastPractisedAt: row.last_practised_at || null,
+      };
+    }),
   });
 }));
 

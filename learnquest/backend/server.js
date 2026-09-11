@@ -16,6 +16,7 @@ const gameRoutes = require("./routes/game");
 const rewardRoutes = require("./routes/rewards");
 const parentRoutes = require("./routes/parent");
 const taskRoutes = require("./routes/tasks");
+const missionRoutes = require("./routes/missions");
 
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
@@ -122,6 +123,7 @@ app.use("/api/game", gameRoutes);
 app.use("/api/rewards", rewardRoutes);
 app.use("/api/parent", parentRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/missions", missionRoutes);
 
 app.get("/api/health", async (req, res) => {
   const startedAt = Date.now();

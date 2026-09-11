@@ -71,6 +71,12 @@
         </div>
 
         <div class="card mt-24">
+          <h3>🌍 RealWorld Mission Evidence</h3>
+          <p class="muted">Attempts and skill accuracy from world interactions, reported separately from coins and cosmetics.</p>
+          <div id="missionEvidence"></div>
+        </div>
+
+        <div class="card mt-24">
           <h3 data-i18n="parent_subject_progress">Subject Progress</h3>
           <div id="subjectBars"></div>
         </div>
@@ -210,6 +216,11 @@
     document.getElementById("runnerLevels").innerHTML = runner.levels.length
       ? runner.levels.map(l => `<div class="task-row"><div><div class="muted" style="font-size:.76rem;font-weight:800;text-transform:uppercase;letter-spacing:.04em;">${l.world_name || "Adventure World"}</div><b>Level ${l.level_number}: ${l.name}</b><div class="muted" style="font-size:.82rem;">${"⭐".repeat(l.best_stars)}${"☆".repeat(Math.max(0,3-l.best_stars))} · 🧠 ${l.best_accuracy}% · ${l.runs_completed} completed runs</div></div><div>🏆 ${l.best_score}</div></div>`).join("")
       : `<p class="muted">No 3D runner activity yet.</p>`;
+
+    const missionEvidence = d.realWorldMissions || [];
+    document.getElementById("missionEvidence").innerHTML = missionEvidence.length
+      ? missionEvidence.map(m => `<div class="task-row"><div><b>${m.missionId.replaceAll("_", " ")} · ${m.skill.replaceAll("_", " ")}</b><div class="muted" style="font-size:.82rem;">${m.attempts} attempts · ${m.correct} correct · ${m.mistakes} explained mistakes · ${m.sessionsCompleted} completed sessions</div></div><div style="font:800 1.2rem var(--font-display);">${m.accuracy}%</div></div>`).join("")
+      : `<p class="muted">No RealWorld mission activity yet.</p>`;
 
     const bars = document.getElementById("subjectBars");
     bars.innerHTML = "";

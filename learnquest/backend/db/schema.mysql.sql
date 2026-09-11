@@ -219,3 +219,41 @@ CREATE TABLE IF NOT EXISTS child_equipped_rewards (
   UNIQUE KEY uq_equipped_child_slot (child_id, slot),
   INDEX idx_equipped_child (child_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- RealWorld learning evidence stays independent from runner/cosmetic rewards.
+CREATE TABLE IF NOT EXISTS mission_sessions (
+  id VARCHAR(64) PRIMARY KEY,
+  child_id VARCHAR(64) NOT NULL,
+  mission_id VARCHAR(32) NOT NULL,
+  age_group VARCHAR(16) NOT NULL,
+  language VARCHAR(8) NOT NULL DEFAULT 'en',
+  status VARCHAR(24) NOT NULL DEFAULT 'active',
+  current_step INT NOT NULL DEFAULT 0,
+  total_steps INT NOT NULL DEFAULT 3,
+  attempts INT NOT NULL DEFAULT 0,
+  correct INT NOT NULL DEFAULT 0,
+  mistakes INT NOT NULL DEFAULT 0,
+  started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  finished_at DATETIME NULL,
+  CONSTRAINT fk_mission_sessions_child FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE,
+  INDEX idx_mission_sessions_child (child_id, mission_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS mission_attempts (
+  id VARCHAR(64) PRIMARY KEY,
+  session_id VARCHAR(64) NOT NULL,
+  child_id VARCHAR(64) NOT NULL,
+  mission_id VARCHAR(32) NOT NULL,
+  age_group VARCHAR(16) NOT NULL,
+  language VARCHAR(8) NOT NULL DEFAULT 'en',
+  step_index INT NOT NULL,
+  skill VARCHAR(64) NOT NULL,
+  answer_id VARCHAR(64) NOT NULL,
+  correct TINYINT(1) NOT NULL,
+  attempt_number INT NOT NULL,
+  answered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT fk_mission_attempts_session FOREIGN KEY (session_id) REFERENCES mission_sessions(id) ON DELETE CASCADE,
+  CONSTRAINT fk_mission_attempts_child FOREIGN KEY (child_id) REFERENCES children(id) ON DELETE CASCADE,
+  UNIQUE KEY uq_mission_step_attempt (session_id, step_index, attempt_number),
+  INDEX idx_mission_attempts_child (child_id, mission_id, skill)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
