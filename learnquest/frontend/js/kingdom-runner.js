@@ -586,11 +586,11 @@ class KingdomRunner {
     this.highlightQuestionLane();
   }
   jump() {
-    if(!this.running||this.paused||this.ended||this.answerPending)return;
+    if(!this.running||this.paused||this.ended||this.answerPending||this.learningFocus.active)return;
     if(this.jumpY<=.03&&!this.sliding){this.jumpVelocity=8.6;this.audio.jump();this.characterController?.setState("jump");}
   }
   slide() {
-    if(!this.running||this.paused||this.ended||this.answerPending)return;
+    if(!this.running||this.paused||this.ended||this.answerPending||this.learningFocus.active)return;
     if(this.jumpY<.2){this.sliding=true;this.slideTimer=.72;this.audio.slide();this.characterController?.setState("slide");}
   }
 

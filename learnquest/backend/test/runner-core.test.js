@@ -128,6 +128,13 @@ test('learning focus countdown resumes automatically and is wired into both runn
     assert.match(source, /new LearningFocus/);
     assert.match(source, /if \(this\.learningFocus\.active\)/);
     assert.match(source, /this\.learningFocus\.start\(\)/);
+    const runnerSource = source.slice(source.search(/class \w+Runner/));
+    const jumpGuard = runnerSource.match(/jump\(\) \{([\s\S]*?)\n  \}/)?.[1] || '';
+    const slideGuard = runnerSource.match(/slide\(\) \{([\s\S]*?)\n  \}/)?.[1] || '';
+    assert.match(jumpGuard, /this\.learningFocus\.active/);
+    assert.match(slideGuard, /this\.learningFocus\.active/);
+    assert.match(jumpGuard, /this\.jumpVelocity=8\.6/);
+    assert.match(slideGuard, /this\.sliding=true/);
   }
 });
 
