@@ -3,6 +3,7 @@ const { nanoid } = require("nanoid");
 const db = require("../db");
 const { requireAuth } = require("../utils/auth");
 const asyncRoute = require("../utils/async-route");
+const { createRunToken, hashRunToken, tokenMatches, validateRunEvent, validateCompletionTelemetry } = require("../utils/run-integrity");
 
 const router = express.Router();
 
@@ -185,6 +186,12 @@ async function getPlayableRun(tx, runId, childId) {
   return run;
 }
 
+function requireRunToken(run, token) {
+  if (!tokenMatches(token, run.integrity_token_hash)) {
+    const err = new Error("Run integrity token is invalid"); err.status = 403; throw err;
+  }
+}
+
 router.post("/runner/start", requireAuth("child"), asyncRoute(async (req, res) => {
   const levelId = String(req.body?.levelId || "").trim();
   if (!levelId) return res.status(400).json({ error: "levelId is required" });
@@ -208,13 +215,15 @@ router.post("/runner/start", requireAuth("child"), asyncRoute(async (req, res) =
       [req.user.id]
     );
     const runId = `run_${nanoid(14)}`;
+    const runToken = createRunToken();
     await tx.run(
-      "INSERT INTO game_runs (id, child_id, level_id, status) VALUES (?, ?, ?, ?)",
-      [runId, req.user.id, levelId, "active"]
+      "INSERT INTO game_runs (id, child_id, level_id, status, integrity_token_hash) VALUES (?, ?, ?, ?, ?)",
+      [runId, req.user.id, levelId, "active", hashRunToken(runToken)]
     );
 
     return {
       runId,
+      runToken,
       mission: missionForLevel(level.level_number, Number(level.is_boss || 0) === 1, level.world_id),
       questionCount: Number(level.questions_required || 3),
       isBoss: Number(level.is_boss || 0) === 1,
@@ -235,6 +244,7 @@ router.post("/runner/answer", requireAuth("child"), asyncRoute(async (req, res) 
 
   const result = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") {
       const err = new Error("This run is no longer active"); err.status = 409; throw err;
     }
@@ -292,12 +302,33 @@ router.post("/runner/answer", requireAuth("child"), asyncRoute(async (req, res) 
   res.json(result);
 }));
 
+router.post("/runner/event", requireAuth("child"), asyncRoute(async (req, res) => {
+  const runId = String(req.body?.runId || "").trim();
+  const type = String(req.body?.type || "").trim();
+  const amount = Number(req.body?.amount);
+  const sequence = Number(req.body?.sequence);
+  if (!runId) return res.status(400).json({ error: "runId is required" });
+  const result = await db.transaction(async (tx) => {
+    const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
+    if (run.status !== "active") { const err = new Error("This run is no longer active"); err.status = 409; throw err; }
+    const elapsedMs = Math.max(0, Date.now() - new Date(run.started_at).getTime());
+    const check = validateRunEvent({ type, amount, sequence, previousSequence: run.event_sequence, elapsedMs, previousEventElapsedMs: run.last_event_elapsed_ms, previousEventType: run.last_event_type });
+    if (!check.ok) { const err = new Error(check.reason); err.status = 409; throw err; }
+    const column = { coin: "verified_coins", key: "verified_keys", obstacle: "verified_obstacles" }[type];
+    await tx.run(`UPDATE game_runs SET event_sequence = ?, ${column} = ${column} + ?, last_event_elapsed_ms = ?, last_event_type = ? WHERE id = ?`, [sequence, amount, elapsedMs, type, run.id]);
+    return { accepted: true, sequence };
+  });
+  res.json(result);
+}));
+
 router.post("/runner/crash", requireAuth("child"), asyncRoute(async (req, res) => {
   const runId = String(req.body?.runId || "").trim();
   if (!runId) return res.status(400).json({ error: "runId is required" });
 
   const result = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") return { ok: true, alreadyClosed: true };
 
     const distance = clampNumber(req.body?.distance, 0, 10000);
@@ -335,6 +366,7 @@ router.post("/runner/complete", requireAuth("child"), asyncRoute(async (req, res
 
   const response = await db.transaction(async (tx) => {
     const run = await getPlayableRun(tx, runId, req.user.id);
+    requireRunToken(run, req.body?.runToken);
     if (run.status !== "active") {
       const err = new Error("This run is already finished"); err.status = 409; throw err;
     }
@@ -351,11 +383,14 @@ router.post("/runner/complete", requireAuth("child"), asyncRoute(async (req, res
 
     const distance = clampNumber(req.body?.distance, 0, 10000);
     const score = clampNumber(req.body?.score, 0, 10000000);
-    const runCoins = clampNumber(req.body?.coins, 0, 120);
-    const keys = clampNumber(req.body?.keys, 0, 20);
+    const runCoins = clampNumber(run.verified_coins, 0, 120);
+    const keys = clampNumber(run.verified_keys, 0, 20);
     const obstacles = clampNumber(req.body?.obstaclesDodged, 0, 1000);
     const combo = clampNumber(req.body?.maxCombo, 0, 1000);
     const durationSeconds = clampNumber(req.body?.durationSeconds, 1, 3600, 60);
+    const serverDurationSeconds = Math.max(1, Math.floor((Date.now() - new Date(run.started_at).getTime()) / 1000));
+    const telemetry = validateCompletionTelemetry({ distance, score, combo, obstacles, verifiedCoins: runCoins, verifiedKeys: keys }, serverDurationSeconds);
+    if (!telemetry.ok) { const err = new Error(telemetry.reason); err.status = 409; throw err; }
 
     const answerRows = await tx.all(`
       SELECT a.correct, q.xp_reward

@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const { schoolFeatureEnabled } = require("../utils/features");
 
 let dialect = null;
 let mysqlPool = null;
@@ -70,6 +71,7 @@ async function init() {
 
     const schema = fs.readFileSync(path.join(__dirname, "schema.mysql.sql"), "utf8");
     await mysqlPool.query(schema);
+    if (schoolFeatureEnabled()) await mysqlPool.query(fs.readFileSync(path.join(__dirname, "school-schema.mysql.sql"), "utf8"));
 
     // CREATE TABLE IF NOT EXISTS does not alter columns on an existing Railway
     // database. Older LearnQuest releases used VARCHAR(16) for children.pin,
@@ -77,6 +79,15 @@ async function init() {
     // automatically on every startup (idempotent) so new child creation and
     // legacy PIN upgrades never fail with "Data too long for column 'pin'".
     await mysqlPool.query("ALTER TABLE children MODIFY COLUMN pin VARCHAR(255) NOT NULL");
+    for (const statement of [
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS integrity_token_hash CHAR(64) NULL",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS event_sequence INT NOT NULL DEFAULT 0",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_coins INT NOT NULL DEFAULT 0",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_keys INT NOT NULL DEFAULT 0",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS verified_obstacles INT NOT NULL DEFAULT 0",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_event_elapsed_ms INT NULL",
+      "ALTER TABLE game_runs ADD COLUMN IF NOT EXISTS last_event_type VARCHAR(16) NULL",
+    ]) await mysqlPool.query(statement);
 
     dialect = "mysql";
     console.log("🗄️ LearnQuest database: MySQL");
@@ -89,6 +100,20 @@ async function init() {
     sqliteDb.pragma("foreign_keys = ON");
     const schema = fs.readFileSync(path.join(__dirname, "schema.sqlite.sql"), "utf8");
     sqliteDb.exec(schema);
+    if (schoolFeatureEnabled()) sqliteDb.exec(fs.readFileSync(path.join(__dirname, "school-schema.sqlite.sql"), "utf8"));
+    const runColumns = new Set(sqliteDb.prepare("PRAGMA table_info(game_runs)").all().map((column) => column.name));
+    const compatibilityColumns = {
+      integrity_token_hash: "TEXT",
+      event_sequence: "INTEGER NOT NULL DEFAULT 0",
+      verified_coins: "INTEGER NOT NULL DEFAULT 0",
+      verified_keys: "INTEGER NOT NULL DEFAULT 0",
+      verified_obstacles: "INTEGER NOT NULL DEFAULT 0",
+      last_event_elapsed_ms: "INTEGER",
+      last_event_type: "TEXT",
+    };
+    for (const [name, definition] of Object.entries(compatibilityColumns)) {
+      if (!runColumns.has(name)) sqliteDb.exec(`ALTER TABLE game_runs ADD COLUMN ${name} ${definition}`);
+    }
     dialect = "sqlite";
     console.log(`🗄️ LearnQuest database: SQLite (${dbPath})`);
     console.warn("⚠️ MySQL variables were not found. SQLite fallback is active. For Railway production, add MYSQL_URL or MYSQLHOST/MYSQLPORT/MYSQLUSER/MYSQLPASSWORD/MYSQLDATABASE to the app service.");

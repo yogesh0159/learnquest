@@ -47,6 +47,7 @@ const api = {
   gateAttempt: (payload) => apiRequest("/game/gate/attempt", { method: "POST", body: payload }),
   runnerStart: (payload) => apiRequest("/game/runner/start", { method: "POST", body: payload }),
   runnerAnswer: (payload) => apiRequest("/game/runner/answer", { method: "POST", body: payload }),
+  runnerEvent: (payload) => apiRequest("/game/runner/event", { method: "POST", body: payload }),
   runnerCrash: (payload) => apiRequest("/game/runner/crash", { method: "POST", body: payload }),
   runnerComplete: (payload) => apiRequest("/game/runner/complete", { method: "POST", body: payload }),
   missions: () => apiRequest("/missions"),
